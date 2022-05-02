@@ -6,15 +6,19 @@
 
 (deffacts hechos-iniciales
         (inicio "_ __" 0)
+        (estado "")
 )
-;COMENTARIO DE PRUEBA PARA COMPROBAR LOS COMMITS
+
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
     (declare (salience 20))
     ?a<-(inicio ?o ?q)
+    ?b<-(estado ?e)
 =>
     (retract ?a) 
+    (retract ?b)
+    (assert (estado "TURNO"))
     (printout t "Especifica tamano del tablero" crlf)
     (bind ?*tamano* (read))
 
@@ -35,8 +39,10 @@
 ;PIDE AL USUARIO COORDENADAS Y GENERA LA FICHA
 (defrule INSERTAR_FICHA
     (declare (salience 10))
-
+    ?b<-(estado "TURNO")
 =>
+    (retract ?b)
+    
 
     (printout t "Donde desea insertar la ficha? (Numero ????)" crlf)
 
@@ -54,15 +60,23 @@
     ;FALTA GENERAR NUMERO RANDOM (DE MOMENTO 10)
     (if (> ?x ?*tamano*) then
          (printout t "Indica una posicion correcta" crlf)
+         (assert (estado "TURNO"))
     else    
         (if (> ?y ?*tamano*) then
             (printout t "Indica una posicion correcta" crlf)
+            (assert (estado "TURNO"))
         else
-            (bind ?x (- ?x 1))
-            (bind ?y (- ?y 1))
-            (assert (ficha ?color 10 ?x ?y))
-            (+ ?*turnos* 1)
-
+            ;esta parte del if es la que funciona pocha
+            (if (ficha ?x ?y)then
+                (printout t "Esa posicion ya esta ocupada" crlf)
+                (assert (estado "TURNO"))
+            else
+                (bind ?x (- ?x 1))
+                (bind ?y (- ?y 1))
+                (assert (ficha ?color 10 ?x ?y))
+                (+ ?*turnos* 1)
+                (assert (estado "ACTUALIZAR"))
+            )
         )
     )
     
@@ -75,8 +89,10 @@
 (defrule ACTUALIZAR_TABLERO
     (declare (salience 5))
     ?a<-(ficha ?color ?numero ?x ?y)
+    ?b<-(estado "ACTUALIZAR")
 
 =>
+    (assert (estado "TURNO"))
     ;damos formato a la ficha
     (bind ?ficha (str-cat ?color ?numero))
     ;calculamos su posicion en el tablero
