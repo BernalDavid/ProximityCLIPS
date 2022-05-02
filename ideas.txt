@@ -1,0 +1,6 @@
+LISTA DE IDEAS PARA IMPLEMENTAR EL JUEGO
+- Regla para comprobar si una ficha está insertada o no
+
+
+
+LISTA DE IDEAS PARA IMPLEMENTAR LA IA
