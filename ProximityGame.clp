@@ -7,7 +7,7 @@
 (deffacts hechos-iniciales
         (inicio "_ __" 0)
 )
-
+;COMENTARIO DE PRUEBA PARA COMPROBAR LOS COMMITS
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
