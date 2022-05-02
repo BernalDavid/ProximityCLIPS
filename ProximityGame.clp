@@ -2,21 +2,20 @@
     ?*turnos* = 0
     ?*tablero* = ""
     ?*tamano* = 0
+    ?*jugador1* = ""
+    ?*jugador2* = ""
 )
 
 (deffacts hechos-iniciales
-        (inicio "_ __" 0)
-        (estado "")
+        (estado "INICIO")
 )
 
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
     (declare (salience 20))
-    ?a<-(inicio ?o ?q)
-    ?b<-(estado ?e)
+    ?b<-(estado "INICIO")
 =>
-    (retract ?a) 
     (retract ?b)
     (assert (estado "TURNO"))
     (printout t "Especifica tamano del tablero" crlf)
@@ -31,6 +30,12 @@
         (bind ?*tablero* (str-cat ?*tablero* ?fila))
         
     )
+
+    (bind ?aux (div (* ?*tamano* ?*tamano*) 2))
+    (loop-for-count (?i 1 ?aux) do
+        (bind ?*jugador1* (str-cat ?*jugador1* ?i" "))
+        (bind ?*jugador2* (str-cat ?*jugador2* ?i" "))
+    )
     ;(printout t ?*tablero* crlf)
 
 )
@@ -43,9 +48,28 @@
 =>
     (retract ?b)
     
+    ;FALTA ESPECIFICAR EL JUGADOR 
+    ; (printout t "Fichas disponibles:" ?*jugador1* crlf)
+    ; (printout t "Elija numero de ficha" crlf)
+    ; (bind ?numero (read))
 
-    (printout t "Donde desea insertar la ficha? (Numero ????)" crlf)
+    
+    ; (bind ?pos (+ (* ?numero 2) 1))
+    ; (bind ?numLista (sub-string ?pos ?pos ?*jugador1*))
 
+    ; (if (= ?numLista "-") then
+    ;     (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
+    ;     (assert (estado "TURNO"))
+    ; else
+    ;     (bind $?lista (create$ (explode$ ?*jugador1*)))
+    ;     (bind $?lista (replace$ $?tableroMulti ?pos ?pos "- "))
+    ;     (bind ?*jugador1* (implode$ $?lista))
+    ; )
+    
+
+    
+    
+    (printout t "Donde desea insertar la ficha?" crlf)
     (printout t "Indica la fila" crlf)
     (bind ?x (read))
 
