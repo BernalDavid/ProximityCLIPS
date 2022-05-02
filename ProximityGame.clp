@@ -51,7 +51,7 @@
 
     (printout t "Indica la columna" crlf)
     (bind ?y (read))
-    (if (= (mod ?*turnos* 2) 0) then
+    (if (= (mod  ?*turnos*  2) 0) then
         (bind ?color "R")
     
     else
@@ -67,31 +67,50 @@
             (assert (estado "TURNO"))
         else
             ;esta parte del if es la que funciona pocha
-            (if (ficha ?x ?y)then
-                (printout t "Esa posicion ya esta ocupada" crlf)
-                (assert (estado "TURNO"))
-            else
-                (bind ?x (- ?x 1))
-                (bind ?y (- ?y 1))
-                (assert (ficha ?color 10 ?x ?y))
-                (+ ?*turnos* 1)
-                (assert (estado "ACTUALIZAR"))
-            )
+            ;(if (ficha ?x ?y)then
+            ;    (printout t "Esa posicion ya esta ocupada" crlf)
+            ;     (assert (estado "TURNO"))
+            ; else
+            ;     (bind ?x (- ?x 1))
+            ;     (bind ?y (- ?y 1))
+            ;     (assert (ficha ?color 10 ?x ?y))
+            ;     (+ ?*turnos* 1)
+            ;     (assert (estado "ACTUALIZAR"))
+            ; )
+            (assert (estado "COMPROBAR"))
+            (assert (ficha ?color 10 ?x ?y "NO"))
         )
     )
-    
-   
-
 )
 
+;COMPROBAR SI LA POSICION DE LA FICHA ESTA OCUPADA
+(defrule COMPROBAR_FICHA
+    (declare (salience  10))
+    ?a<-(ficha ?x ?y "NO")
+    ?b<-(ficha ?x ?y "SI")
+    ?c<-(estado "COMPROBAR")
+=>
+    ;Ya hay una ficha con esas coordenadas
+    (retract ?a)
+    (retract ?c)
+    (assert (estado "TURNO"))
+    (printout t "Ya hay una ficha en esa posicion. Por favor, inserte una posicion valida" crlf)
+
+)
 
 ;METE LA FICHA GENERADA EN EL TABLERO
 (defrule ACTUALIZAR_TABLERO
     (declare (salience 5))
-    ?a<-(ficha ?color ?numero ?x ?y)
-    ?b<-(estado "ACTUALIZAR")
+    ?a<-(ficha ?color ?numero ?x ?y "NO")
+    ?b<-(estado "COMPROBAR")
 
 =>
+    (retract ?a)
+    ;No hay ninguna ficha con esa posición
+    (+ ?*turnos* 1)
+    (assert (ficha ?color ?numero ?x ?y "SI"))
+    (bind ?x (- ?x 1))
+    (bind ?y (- ?y 1))
     (assert (estado "TURNO"))
     ;damos formato a la ficha
     (bind ?ficha (str-cat ?color ?numero))
