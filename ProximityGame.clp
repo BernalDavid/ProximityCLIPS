@@ -1,5 +1,5 @@
 (defglobal 
-    ?*turnos* = 0
+    ?*turnos* = 1
     ?*tablero* = ""
     ?*tamano* = 0
     ?*jugador1* = ""
@@ -49,26 +49,26 @@
     (retract ?b)
     
     ;FALTA ESPECIFICAR EL JUGADOR 
+    (printout t "Fichas disponibles:" ?*jugador1* crlf)
+    (printout t "Elija numero de ficha" crlf)
+    (bind ?numero (read))
+
+    ;lista=multicampo del fichas del jugador
+    (bind $?lista (create$ (explode$ ?*jugador1*)))
+
+    (if (subset (create$ ?numero) $?lista) then
+        (bind $?lista (replace$ $?lista ?numero ?numero "-"))
+        (bind ?*jugador1* (implode$ $?lista))
+    else
+        (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
+        (assert (estado "TURNO"))
+    )
+
+    
     ; (printout t "Fichas disponibles:" ?*jugador1* crlf)
     ; (printout t "Elija numero de ficha" crlf)
     ; (bind ?numero (read))
 
-    
-    ; (bind ?pos (+ (* ?numero 2) 1))
-    ; (bind ?numLista (sub-string ?pos ?pos ?*jugador1*))
-
-    ; (if (= ?numLista "-") then
-    ;     (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
-    ;     (assert (estado "TURNO"))
-    ; else
-    ;     (bind $?lista (create$ (explode$ ?*jugador1*)))
-    ;     (bind $?lista (replace$ $?tableroMulti ?pos ?pos "- "))
-    ;     (bind ?*jugador1* (implode$ $?lista))
-    ; )
-    
-
-    
-    
     (printout t "Donde desea insertar la ficha?" crlf)
     (printout t "Indica la fila" crlf)
     (bind ?x (read))
@@ -102,7 +102,7 @@
             ;     (assert (estado "ACTUALIZAR"))
             ; )
             (assert (estado "COMPROBAR"))
-            (assert (ficha ?color 10 ?x ?y "NO"))
+            (assert (ficha ?color ?numero ?x ?y "NO"))
         )
     )
 )
@@ -131,7 +131,6 @@
 =>
     (retract ?a)
     ;No hay ninguna ficha con esa posición
-    (+ ?*turnos* 1)
     (assert (ficha ?color ?numero ?x ?y "SI"))
     (bind ?x (- ?x 1))
     (bind ?y (- ?y 1))
@@ -157,6 +156,6 @@
         )
         (printout t crlf)
     )
-
+    (bind ?*turnos* (+ ?*turnos* 1))
 )
 
