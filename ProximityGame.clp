@@ -1,9 +1,11 @@
 (defglobal 
-    ?*turnos* = 1
+    ?*turnos* = 0
     ?*tablero* = ""
     ?*tamano* = 0
     ?*jugador1* = ""
     ?*jugador2* = ""
+    ?*score1* = 0
+    ?*score2* = 0 
 )
 
 (deffacts hechos-iniciales
@@ -50,21 +52,6 @@
     
     ;FALTA ESPECIFICAR EL JUGADOR 
     (if (= (mod  ?*turnos*  2) 0) then
-        (printout t "Fichas disponibles:" ?*jugador2* crlf)
-        (printout t "Elija numero de ficha" crlf)
-        (bind ?numero (read))
-
-        ;lista=multicampo del fichas del jugador
-        (bind $?lista (create$ (explode$ ?*jugador2*)))
-
-        (if (subset (create$ ?numero) $?lista) then
-            (bind $?lista (replace$ $?lista ?numero ?numero -))
-            (bind ?*jugador2* (implode$ $?lista))
-        else
-            (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
-            (assert (estado "TURNO"))
-        )
-    else
         (printout t "Fichas disponibles:" ?*jugador1* crlf)
         (printout t "Elija numero de ficha" crlf)
         (bind ?numero (read))
@@ -72,20 +59,25 @@
         ;lista=multicampo del fichas del jugador
         (bind $?lista (create$ (explode$ ?*jugador1*)))
 
-        (if (subset (create$ ?numero) $?lista) then
-            (bind $?lista (replace$ $?lista ?numero ?numero -))
-            (bind ?*jugador1* (implode$ $?lista))
-        else
+        (if (not (subset (create$ ?numero) $?lista)) then
             (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
             (assert (estado "TURNO"))
-    )
+        )
+    else
+        (printout t "Fichas disponibles:" ?*jugador2* crlf)
+        (printout t "Elija numero de ficha" crlf)
+        (bind ?numero (read))
+
+        ;lista=multicampo del fichas del jugador
+        (bind $?lista (create$ (explode$ ?*jugador2*)))
+
+        (if (not (subset (create$ ?numero) $?lista)) then
+            (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
+            (assert (estado "TURNO"))
+        )
 
     )
     
-    
-    ; (printout t "Fichas disponibles:" ?*jugador1* crlf)
-    ; (printout t "Elija numero de ficha" crlf)
-    ; (bind ?numero (read))
 
     (printout t "Donde desea insertar la ficha?" crlf)
     (printout t "Indica la fila" crlf)
@@ -99,14 +91,13 @@
     else
         (bind ?color "A")
     )
+
     (if (> ?x ?*tamano*) then
          (printout t "Indica una posicion correcta" crlf)
-         (bind $?lista (replace$ $?lista ?numero ?numero ?numero))
          (assert (estado "TURNO"))
     else    
         (if (> ?y ?*tamano*) then
             (printout t "Indica una posicion correcta" crlf)
-            (bind $?lista (replace$ $?lista ?numero ?numero ?numero))
             (assert (estado "TURNO"))
         else
             (bind ?posicion (+ (-(* ?y ?*tamano*) ?x)1))
@@ -118,9 +109,17 @@
             (if (subset ?comprobar (create$ '_00')) then
                 (assert (estado "ACTUALIZAR"))
                 (assert (ficha ?color ?numero ?x ?y ))
+                (bind $?lista (replace$ $?lista ?numero ?numero -))
+                
+                (if (= (mod  ?*turnos*  2) 0) then
+                    (bind ?*score1* (+ ?*score1* ?numero))
+                    (bind ?*jugador1* (implode$ $?lista))
+                else
+                    (bind ?*score2* (+ ?*score2* ?numero))
+                    (bind ?*jugador2* (implode$ $?lista))
+                )
             else
                 (printout t "Esa posicion ya esta en uso, por favor, indica una posicion correcta" crlf)
-                (bind $?lista (replace$ $?lista ?numero ?numero ?numero))
                 (assert (estado "TURNO"))
             )
         )
@@ -138,7 +137,6 @@
     (retract ?b)
     (bind ?x (- ?x 1))
     (bind ?y (- ?y 1))
-    (assert (estado "TURNO"))
     ;damos formato a la ficha
     (bind ?ficha (str-cat ?color ?numero))
     ;calculamos su posicion en el tablero
@@ -161,5 +159,38 @@
         (printout t crlf)
     )
     (bind ?*turnos* (+ ?*turnos* 1))
+    (printout t "Puntuacion del jugador1: " ?*score1* crlf)
+    (printout t "Puntuacion del jugador2: " ?*score2* crlf)
+
+    (if (= (mod (* ?*tamano* ?*tamano*) 2) 0) then
+        (if (= ?*turnos* (* ?*tamano* ?*tamano*)) then
+            (assert (estado "GANAR"))
+        else
+            (assert (estado "TURNO"))
+        )
+    else
+        (if (= ?*turnos* (- (* ?*tamano* ?*tamano*) 1)) then
+            (assert (estado "GANAR"))
+        else
+            (assert (estado "TURNO"))
+        )
+    )
+    
 )
 
+(defrule FINAL
+    ?a<-(estado "GANAR")
+=>
+    (if (= ?*score1* ?*score2*) then
+        (printout t "Empate")
+        (halt)
+    else
+        (if (> ?*score1* ?*score2*) then
+            (printout t "El jugador1 gana.")
+            (halt)
+        else
+            (printout t "El jugador2 gana.")
+            (halt)
+        )
+    )
+)
