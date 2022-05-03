@@ -49,21 +49,39 @@
     (retract ?b)
     
     ;FALTA ESPECIFICAR EL JUGADOR 
-    (printout t "Fichas disponibles:" ?*jugador1* crlf)
-    (printout t "Elija numero de ficha" crlf)
-    (bind ?numero (read))
+    (if (= (mod  ?*turnos*  2) 0) then
+        (printout t "Fichas disponibles:" ?*jugador2* crlf)
+        (printout t "Elija numero de ficha" crlf)
+        (bind ?numero (read))
 
-    ;lista=multicampo del fichas del jugador
-    (bind $?lista (create$ (explode$ ?*jugador1*)))
+        ;lista=multicampo del fichas del jugador
+        (bind $?lista (create$ (explode$ ?*jugador2*)))
 
-    (if (subset (create$ ?numero) $?lista) then
-        (bind $?lista (replace$ $?lista ?numero ?numero "-"))
-        (bind ?*jugador1* (implode$ $?lista))
+        (if (subset (create$ ?numero) $?lista) then
+            (bind $?lista (replace$ $?lista ?numero ?numero -))
+            (bind ?*jugador2* (implode$ $?lista))
+        else
+            (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
+            (assert (estado "TURNO"))
+        )
     else
-        (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
-        (assert (estado "TURNO"))
+        (printout t "Fichas disponibles:" ?*jugador1* crlf)
+        (printout t "Elija numero de ficha" crlf)
+        (bind ?numero (read))
+
+        ;lista=multicampo del fichas del jugador
+        (bind $?lista (create$ (explode$ ?*jugador1*)))
+
+        (if (subset (create$ ?numero) $?lista) then
+            (bind $?lista (replace$ $?lista ?numero ?numero -))
+            (bind ?*jugador1* (implode$ $?lista))
+        else
+            (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
+            (assert (estado "TURNO"))
     )
 
+    )
+    
     
     ; (printout t "Fichas disponibles:" ?*jugador1* crlf)
     ; (printout t "Elija numero de ficha" crlf)
