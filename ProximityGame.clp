@@ -99,57 +99,43 @@
     else
         (bind ?color "A")
     )
-    ;FALTA GENERAR NUMERO RANDOM (DE MOMENTO 10)
     (if (> ?x ?*tamano*) then
          (printout t "Indica una posicion correcta" crlf)
+         (bind $?lista (replace$ $?lista ?numero ?numero ?numero))
          (assert (estado "TURNO"))
     else    
         (if (> ?y ?*tamano*) then
             (printout t "Indica una posicion correcta" crlf)
+            (bind $?lista (replace$ $?lista ?numero ?numero ?numero))
             (assert (estado "TURNO"))
         else
-            ;esta parte del if es la que funciona pocha
-            ;(if (ficha ?x ?y)then
-            ;    (printout t "Esa posicion ya esta ocupada" crlf)
-            ;     (assert (estado "TURNO"))
-            ; else
-            ;     (bind ?x (- ?x 1))
-            ;     (bind ?y (- ?y 1))
-            ;     (assert (ficha ?color 10 ?x ?y))
-            ;     (+ ?*turnos* 1)
-            ;     (assert (estado "ACTUALIZAR"))
-            ; )
-            (assert (estado "COMPROBAR"))
-            (assert (ficha ?color ?numero ?x ?y "NO"))
+            (bind ?posicion (+ (-(* ?y ?*tamano*) ?x)1))
+            
+            ;transformamos el tablero en variable multicampo
+            (bind $?tableroMulti (create$ (explode$ ?*tablero*)))
+            (bind ?comprobar (subseq$ ?tableroMulti ?posicion ?posicion))
+            ;(if (subset (create$ "'_00'")?comprobar ) then
+            (if (subset ?comprobar (create$ '_00')) then
+                (assert (estado "ACTUALIZAR"))
+                (assert (ficha ?color ?numero ?x ?y ))
+            else
+                (printout t "Esa posicion ya esta en uso, por favor, indica una posicion correcta" crlf)
+                (bind $?lista (replace$ $?lista ?numero ?numero ?numero))
+                (assert (estado "TURNO"))
+            )
         )
     )
 )
 
-;COMPROBAR SI LA POSICION DE LA FICHA ESTA OCUPADA
-(defrule COMPROBAR_FICHA
-    (declare (salience  10))
-    ?a<-(ficha ?x ?y "NO")
-    ?b<-(ficha ?x ?y "SI")
-    ?c<-(estado "COMPROBAR")
-=>
-    ;Ya hay una ficha con esas coordenadas
-    (retract ?a)
-    (retract ?c)
-    (assert (estado "TURNO"))
-    (printout t "Ya hay una ficha en esa posicion. Por favor, inserte una posicion valida" crlf)
-
-)
 
 ;METE LA FICHA GENERADA EN EL TABLERO
 (defrule ACTUALIZAR_TABLERO
     (declare (salience 5))
-    ?a<-(ficha ?color ?numero ?x ?y "NO")
-    ?b<-(estado "COMPROBAR")
+    ?a<-(ficha ?color ?numero ?x ?y )
+    ?b<-(estado "ACTUALIZAR")
 
 =>
-    (retract ?a)
-    ;No hay ninguna ficha con esa posición
-    (assert (ficha ?color ?numero ?x ?y "SI"))
+    (retract ?b)
     (bind ?x (- ?x 1))
     (bind ?y (- ?y 1))
     (assert (estado "TURNO"))
