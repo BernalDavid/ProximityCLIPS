@@ -7,6 +7,8 @@
     (slot beta)
 )
 
+;Turnos pares:      Rojo jugador1
+;Turnos impares:    Azul jugador2
 (defglobal 
     ?*turnos* = 0
     ?*tablero* = ""
@@ -206,7 +208,7 @@
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero ?x (+ ?y 1))))        ;adyacente der
     )
     ;lado inf
-    (if (and (= ?x (- ?*tamano 1) (and (not(= ?y 0)) (not (= ?y (- ?*tamano* 1))))) then
+    (if (and (= ?x (- ?*tamano* 1)) (and (not(= ?y 0)) (not (= ?y (- ?*tamano* 1))))) then
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero ?x (- ?y 1))))        ;adyacente izq
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (- ?x 1) (- ?y 1))))  ;adyacente sup izq
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (- ?x 1) ?y )))       ;adyacente sup
@@ -230,8 +232,8 @@
     ;esquina sup der
     (if (and (= ?x 0) (= ?y (- ?*tamano* 1))) then
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero ?x (- ?y 1))))        ;adyacente izq
+        (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (+ ?x 1) (- ?y 1))))  ;adyacente inf izq
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (+ ?x 1) ?y)))        ;adyacente inf
-        (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (+ ?x 1) (+ ?y 1))))  ;adyacente inf der
     )
     ;lado sup
     (if (and (= ?x 0) (and (not(= ?y 0)) (not (= ?y (- ?*tamano* 1))))) then
@@ -253,7 +255,27 @@
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero ?x (- ?y 1))))        ;adyacente izq
     )
 
-    ;------------------------------------
+    (printout t "Fichas adyacentes:" $?adyacentes crlf)
+    (printout t "Tablero antes" $?tableroMulti crlf)
+
+    ;Hacer las actualizaciones en las adyacentes
+    (progn$ (?pos $?adyacentes)
+        (bind ?ficha (nth$ ?pos $?tableroMulti))
+        (bind ?color (sub-string 1 1 ?ficha))
+        (bind ?pts (eval (sub-string 2 3 ?ficha))) ;Crea un string con los pts y los pasa a integer
+        (if (and (eq ?color "R") (= (mod ?*turnos* 2) 0)) then  ;Ficha roja en turno rojo: sumar
+            (bind ?pts (+ ?pts 1))
+            ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
+            (if (< ?pts 10) then
+                (bind ?pts (str-cat "0" ?pts))
+            )
+            (bind ?ficha (str-cat ?color ?pts))
+            (bind $?tableroMulti (replace$ $?tableroMulti ?pos ?pos ?ficha))
+        )
+    
+    )
+    (printout t "Tablero actualizado" $?tableroMulti crlf)
+    ;-----------------FIN COLOR Y ACTUALIZAR PUNTUACION
 
     ;Actualizamos el hecho
     (modify ?tab (matriz ?tableroMulti))
