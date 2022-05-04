@@ -1,11 +1,22 @@
+(deftemplate tablero
+    (multislot matriz)
+    (slot id)
+    (slot padre)
+    (slot prof)
+    (slot alfa)
+    (slot beta)
+)
+
 (defglobal 
     ?*turnos* = 0
     ?*tablero* = ""
     ?*tamano* = 0
+    ?*id* = 0
     ?*jugador1* = ""
     ?*jugador2* = ""
     ?*score1* = 0
     ?*score2* = 0 
+
 )
 
 (deffacts hechos-iniciales
@@ -38,6 +49,10 @@
         (bind ?*jugador1* (str-cat ?*jugador1* ?i" "))
         (bind ?*jugador2* (str-cat ?*jugador2* ?i" "))
     )
+    
+    (bind $?tableroMulti (create$ (explode$ ?*tablero*)))
+    (printout t $?tableroMulti crlf)
+    (assert (tablero (matriz $?tableroMulti )(id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)))
     ;(printout t ?*tablero* crlf)
 
 )
@@ -78,13 +93,17 @@
 
     )
     
-
     (printout t "Donde desea insertar la ficha?" crlf)
     (printout t "Indica la fila" crlf)
     (bind ?x (read))
 
     (printout t "Indica la columna" crlf)
     (bind ?y (read))
+
+    ;Para nosotros los indices empiezan en 0 (facilita calculos)
+    ;Para el usuario empiezan en 1
+    (bind ?x (- ?x 1))
+    (bind ?y (- ?y 1))
     (if (= (mod  ?*turnos*  2) 0) then
         (bind ?color "R")
     
@@ -100,7 +119,7 @@
             (printout t "Indica una posicion correcta" crlf)
             (assert (estado "TURNO"))
         else
-            (bind ?posicion (+ (-(* ?y ?*tamano*) ?x)1))
+            (bind ?posicion (+(+(* ?x ?*tamano*) ?y)1))
             
             ;transformamos el tablero en variable multicampo
             (bind $?tableroMulti (create$ (explode$ ?*tablero*)))
@@ -130,13 +149,16 @@
 ;METE LA FICHA GENERADA EN EL TABLERO
 (defrule ACTUALIZAR_TABLERO
     (declare (salience 5))
+    ?tab <-(tablero (matriz $?) (id ?) (padre ?) (prof ?) (alfa ?) (beta ?))
     ?a<-(ficha ?color ?numero ?x ?y )
     ?b<-(estado "ACTUALIZAR")
 
 =>
     (retract ?b)
-    (bind ?x (- ?x 1))
-    (bind ?y (- ?y 1))
+    ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
+    (if (< ?numero 10) then
+        (bind ?numero (str-cat "0" ?numero))
+    )
     ;damos formato a la ficha
     (bind ?ficha (str-cat ?color ?numero))
     ;calculamos su posicion en el tablero
@@ -147,6 +169,53 @@
     (bind $?tableroMulti (replace$ $?tableroMulti ?posicion ?posicion ?ficha))
     ;actualizamos el valor del tablero global
     (bind ?*tablero* (implode$ $?tableroMulti))
+
+
+    ;------------CAMBIAR COLOR Y PUNTUACION
+
+    ;esquina sup izq
+    (if () then
+    
+    )
+    ;lado izq
+    (if () then
+    
+    )
+    ;esquina inf izq
+    (if () then
+    
+    )
+    ;lado inf
+    (if () then
+    
+    )
+    ;esquina inf der
+    (if () then
+    
+    )
+    ;lado der
+    (if () then
+    
+    )
+    ;esquina sup der
+    (if () then
+    
+    )
+    ;lado sup
+    (if () then
+    
+    )
+    ;Caso general: centro
+    (if () then
+    
+    )
+
+
+
+    ;------------------------------------
+
+    ;Actualizamos el hecho
+    (modify ?tab (matriz ?tableroMulti))
 
     ;mostramos el tablero actualizado
     (bind ?indice 1)
@@ -159,8 +228,11 @@
         (printout t crlf)
     )
     (bind ?*turnos* (+ ?*turnos* 1))
+    (printout t crlf)
     (printout t "Puntuacion del jugador1: " ?*score1* crlf)
     (printout t "Puntuacion del jugador2: " ?*score2* crlf)
+    (printout t crlf)
+    (printout t crlf)
 
     (if (= (mod (* ?*tamano* ?*tamano*) 2) 0) then
         (if (= ?*turnos* (* ?*tamano* ?*tamano*)) then
