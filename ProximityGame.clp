@@ -11,7 +11,6 @@
 ;Turnos impares:    Azul jugador2
 (defglobal 
     ?*turnos* = 0
-    ?*tablero* = ""
     ?*tamano* = 0
     ?*id* = 0
     ?*jugador1* = ""
@@ -41,14 +40,20 @@
     (printout t "Especifica tamano del tablero" crlf)
     (bind ?*tamano* (read))
 
-    (loop-for-count (?i 1 ?*tamano*) do
-        (bind ?fila "")
-        (loop-for-count(?j 1 ?*tamano*) do
-           (bind ?fila (str-cat ?fila " '_00'"))
+    (bind $?tableroLocal (create$))
+    ;Inicializar tableroMulti local
+    (loop-for-count (?i 1 (* ?*tamano* ?*tamano*)) do
+        (bind $?tableroLocal (insert$ $?tableroLocal ?i "_00"))
+    )
+    
+    ;Imprimir tablero
+    (bind ?indice 1)
+    (progn$ (?elemento $?tableroLocal)
+        (printout t ?elemento)
+        (if (=(mod ?indice ?*tamano*)0) then
+            (printout t crlf)
         )
-        (printout t ?fila crlf)
-        (bind ?*tablero* (str-cat ?*tablero* ?fila))
-        
+        (bind ?indice (+ ?indice 1))
     )
 
     (bind ?aux (div (* ?*tamano* ?*tamano*) 2))
@@ -57,9 +62,8 @@
         (bind ?*jugador2* (str-cat ?*jugador2* ?i" "))
     )
     
-    (bind $?tableroMulti (create$ (explode$ ?*tablero*)))
-    (printout t $?tableroMulti crlf)
-    (assert (tablero (matriz $?tableroMulti )(id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)))
+    (printout t $?tableroLocal crlf)
+    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)))
     ;(printout t ?*tablero* crlf)
 
 )
@@ -68,6 +72,7 @@
 ;PIDE AL USUARIO COORDENADAS Y GENERA LA FICHA
 (defrule INSERTAR_FICHA
     (declare (salience 10))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?) (padre ?) (prof ?) (alfa ?) (beta ?))
     ?b<-(estado "TURNO")
 =>
     (retract ?b)
@@ -128,11 +133,10 @@
         else
             (bind ?posicion (+(+(* ?x ?*tamano*) ?y)1))
             
-            ;transformamos el tablero en variable multicampo
-            (bind $?tableroMulti (create$ (explode$ ?*tablero*)))
-            (bind ?comprobar (subseq$ ?tableroMulti ?posicion ?posicion))
+            
+            (bind ?comprobar (subseq$ $?tableroLocal ?posicion ?posicion))
             ;(if (subset (create$ "'_00'")?comprobar ) then
-            (if (subset ?comprobar (create$ '_00')) then
+            (if (subset ?comprobar (create$ "_00")) then
                 (assert (estado "ACTUALIZAR"))
                 (assert (ficha ?color ?numero ?x ?y ))
                 (bind $?lista (replace$ $?lista ?numero ?numero -))
@@ -156,7 +160,7 @@
 ;METE LA FICHA GENERADA EN EL TABLERO
 (defrule ACTUALIZAR_TABLERO
     (declare (salience 5))
-    ?tab <-(tablero (matriz $?) (id ?) (padre ?) (prof ?) (alfa ?) (beta ?))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?) (padre ?) (prof ?) (alfa ?) (beta ?))
     ?a<-(ficha ?color ?numero ?x ?y )
     ?b<-(estado "ACTUALIZAR")
 
@@ -170,13 +174,10 @@
     (bind ?ficha (str-cat ?color ?numero))
     ;calculamos su posicion en el tablero
     (bind ?posicion (+ (+(* ?x ?*tamano*) ?y)1))
-    ;transformamos el tablero en variable multicampo
-    (bind $?tableroMulti (create$ (explode$ ?*tablero*)))
+    
     ;insertamos la ficha en el tablero
-    (bind $?tableroMulti (replace$ $?tableroMulti ?posicion ?posicion ?ficha))
-    ;actualizamos el valor del tablero global
-    (bind ?*tablero* (implode$ $?tableroMulti))
-
+    (bind $?tableroLocal (replace$ $?tableroLocal ?posicion ?posicion ?ficha))
+    
 
     ;------------CAMBIAR COLOR Y PUNTUACION
     ; X e Y que hay que sumar/restar para obtener los adyacentes:
@@ -256,50 +257,60 @@
     )
 
     (printout t "Fichas adyacentes:" $?adyacentes crlf)
-    (printout t "Tablero antes" $?tableroMulti crlf)
+    (printout t "Tablero antes" $?tableroLocal crlf)
 
     ;Hacer las actualizaciones en las adyacentes
     (progn$ (?pos $?adyacentes)
-        (bind ?ficha (nth$ ?pos $?tableroMulti))
+        (bind ?ficha (nth$ ?pos $?tableroLocal))
         (bind ?color (sub-string 1 1 ?ficha))
-        (bind ?pts (eval (sub-string 2 3 ?ficha))) ;Crea un string con los pts y los pasa a integer
+        (bind ?pts (eval (sub-string 2 4 ?ficha))) ;Crea un string con los pts y los pasa a integer
+
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
             (bind ?pts (+ ?pts 1))
-            ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
-            (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))  
         )
+        
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
-            (printout t "Numero: " ?numero crlf)
-            (printout t "pts:    " ?pts crlf)
-            ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
-            (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))
-            (if (eq ?numero ?pts) then 
+            
+            (bind ?numero (eval ?numero))
+            (if (> ?numero ?pts) then 
                 (if (eq ?color "R") then (bind ?color "A") else (bind ?color "R"))
                 
             )
               
         )
+        ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
+        (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))
         (bind ?ficha (str-cat ?color ?pts))
-        (bind $?tableroMulti (replace$ $?tableroMulti ?pos ?pos ?ficha))
+        (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))                  
     )
-    (printout t "Tablero actualizado" $?tableroMulti crlf)
+    (printout t "Tablero actualizado" $?tableroLocal crlf)
     ;-----------------FIN COLOR Y ACTUALIZAR PUNTUACION
 
     ;Actualizamos el hecho
-    (modify ?tab (matriz ?tableroMulti))
+    (modify ?tab (matriz $?tableroLocal))
 
     ;mostramos el tablero actualizado
+    ; (bind ?indice 1)
+    ; (loop-for-count (?i 1 ?*tamano*) do
+    ;     (loop-for-count (?j 1 ?*tamano*) do
+    ;         (printout t (sub-string ?indice (+ ?indice 5) ?*tablero*))
+    ;         ;(printout t (subseq$ $?tableroMulti ?indice ?indice))
+    ;         (bind ?indice (+ ?indice 6))
+    ;     )
+    ;     (printout t crlf)
+    ; )
     (bind ?indice 1)
-    (loop-for-count (?i 1 ?*tamano*) do
-        (loop-for-count (?j 1 ?*tamano*) do
-            (printout t (sub-string ?indice (+ ?indice 5) ?*tablero*))
-            ;(printout t (subseq$ $?tableroMulti ?indice ?indice))
-            (bind ?indice (+ ?indice 6))
+    (progn$ (?elemento $?tableroLocal)
+        (printout t ?elemento "")
+        (if (=(mod ?indice ?*tamano*)0) then
+            (printout t crlf)
         )
-        (printout t crlf)
+        (bind ?indice (+ ?indice 1))
     )
+    
+
     (bind ?*turnos* (+ ?*turnos* 1))
     (printout t crlf)
     (printout t "Puntuacion del jugador1: " ?*score1* crlf)
