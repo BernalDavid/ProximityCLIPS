@@ -263,16 +263,26 @@
         (bind ?ficha (nth$ ?pos $?tableroMulti))
         (bind ?color (sub-string 1 1 ?ficha))
         (bind ?pts (eval (sub-string 2 3 ?ficha))) ;Crea un string con los pts y los pasa a integer
-        (if (and (eq ?color "R") (= (mod ?*turnos* 2) 0)) then  ;Ficha roja en turno rojo: sumar
+        (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
+                (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
             (bind ?pts (+ ?pts 1))
             ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
-            (if (< ?pts 10) then
-                (bind ?pts (str-cat "0" ?pts))
-            )
-            (bind ?ficha (str-cat ?color ?pts))
-            (bind $?tableroMulti (replace$ $?tableroMulti ?pos ?pos ?ficha))
+            (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))  
         )
-    
+        (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
+                (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
+            (printout t "Numero: " ?numero crlf)
+            (printout t "pts:    " ?pts crlf)
+            ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
+            (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))
+            (if (eq ?numero ?pts) then 
+                (if (eq ?color "R") then (bind ?color "A") else (bind ?color "R"))
+                
+            )
+              
+        )
+        (bind ?ficha (str-cat ?color ?pts))
+        (bind $?tableroMulti (replace$ $?tableroMulti ?pos ?pos ?ficha))
     )
     (printout t "Tablero actualizado" $?tableroMulti crlf)
     ;-----------------FIN COLOR Y ACTUALIZAR PUNTUACION
