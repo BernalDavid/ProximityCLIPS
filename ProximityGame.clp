@@ -117,23 +117,23 @@
 )
 
 ;Dados un jugador y el tablero, calcula la puntuación del jugador y la actualiza en la variable global
-(deffunction calcularPuntuacion(?jugador $?tableroLocal)
-    (bind ?puntos 0)
-    (progn$ (?i $?tableroLocal)
-        (bind ?ficha ?i)
-        (printout t "Ficha: " ?ficha crlf)
-        (if (eq (sub-string 1 1 ?ficha) ?jugador) then
-            (printout t "pts: " ?puntos crlf)
-            (bind ?puntos (+ ?puntos (eval (sub-string 2 3 ?ficha))))
-        )
-    )
-    (printout t "puntos: " ?puntos crlf)
-    (printout t "1ant: " ?*score1* crlf)
-    (if (eq (sub-string 1 1 ?ficha) "R") then (bind ?*score1* ?puntos))
-    (printout t "1des: " ?*score1* crlf)
+; (deffunction calcularPuntuacion(?jugador $?tableroLocal)
+;     (bind ?puntos 0)
+;     (progn$ (?i $?tableroLocal)
+;         (bind ?ficha ?i)
+;         (printout t "Ficha: " ?ficha crlf)
+;         (if (eq (sub-string 1 1 ?ficha) ?jugador) then
+;             (printout t "pts: " ?puntos crlf)
+;             (bind ?puntos (+ ?puntos (eval (sub-string 2 3 ?ficha))))
+;         )
+;     )
+;     (printout t "puntos: " ?puntos crlf)
+;     (printout t "1ant: " ?*score1* crlf)
+;     (if (eq (sub-string 1 1 ?ficha) "R") then (bind ?*score1* ?puntos))
+;     (printout t "1des: " ?*score1* crlf)
 
-    (if (eq (sub-string 1 1 ?ficha) "A") then (bind ?*score2* ?puntos))
-)
+;     (if (eq (sub-string 1 1 ?ficha) "A") then (bind ?*score2* ?puntos))
+; )
 
 ; (deffunction mostrarTablero ($?tableroLocal)
 ;     (bind ?indice 1)
@@ -257,13 +257,13 @@
                     (assert (ficha ?color ?numero ?x ?y ))
                     (bind $?lista (replace$ $?lista ?numero ?numero -))
                 
-                    ; (if (= (mod  ?*turnos*  2) 0) then
-                    ;     (bind ?*score1* (+ ?*score1* ?numero))
-                    ;     (bind ?*jugador1* (implode$ $?lista))
-                    ; else
-                    ;     (bind ?*score2* (+ ?*score2* ?numero))
-                    ;     (bind ?*jugador2* (implode$ $?lista))
-                    ; )
+                    (if (= (mod  ?*turnos*  2) 0) then
+                        (bind ?*score1* (+ ?*score1* ?numero))
+                        (bind ?*jugador1* (implode$ $?lista))
+                    else
+                        (bind ?*score2* (+ ?*score2* ?numero))
+                        (bind ?*jugador2* (implode$ $?lista))
+                    )
                 else
                     (printout t "Esa posicion ya esta en uso, por favor, indica una posicion correcta" crlf)
                     (assert (estado "TURNO"))
@@ -314,6 +314,11 @@
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
             (bind ?pts (+ ?pts 1))
+            (if (and (eq ?color "R") (= (mod ?*turnos* 2) 0)) then
+                (bind ?*score1* (+ ?*score1* 1))
+            else
+                (bind ?*score2* (+ ?*score2* 1))
+            )
         )
         
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
@@ -321,8 +326,15 @@
             
             (bind ?ptsFichaActual (eval ?numero))
             (if (> ?ptsFichaActual ?pts) then 
-                (if (eq ?color "R") then (bind ?color "A") else (bind ?color "R"))
-                
+                (if (eq ?color "R") then 
+                    (bind ?color "A") 
+                    (bind ?*score2* (+ ?*score2* ?pts))
+                    (bind ?*score1* (- ?*score1* ?pts))
+                else 
+                    (bind ?color "R")
+                    (bind ?*score1* (+ ?*score1* ?pts))
+                    (bind ?*score2* (- ?*score2* ?pts))
+                )
             )
               
         )
@@ -337,8 +349,8 @@
     ;Mostramos el tablero
     (mostrarTablero $?tableroLocal)
     ;Calculamos la nueva puntuacion de los jugadores
-    (calcularPuntuacion "R" $?tableroLocal)
-    (calcularPuntuacion "A" $?tableroLocal)
+    ; (calcularPuntuacion "R" $?tableroLocal)
+    ; (calcularPuntuacion "A" $?tableroLocal)
     ;Avanzamos un turno
     (bind ?*turnos* (+ ?*turnos* 1))
 
