@@ -34,9 +34,14 @@
 (deffunction mostrarTablero ($?tableroLocal)
     (bind ?indice 1)
     (progn$ (?elemento $?tableroLocal)
-        (printout t ?elemento "")
+        (printout t  " | " ?elemento )
         (if (=(mod ?indice ?*tamano*)0) then
-            (printout t crlf)
+            (printout t " |" crlf)
+            (loop-for-count (?i 1 ?*tamano*)
+                (printout t " | ---")
+            )
+            (printout t " |" crlf)
+            
         )
         (bind ?indice (+ ?indice 1))
     )
@@ -116,36 +121,6 @@
     (return $?adyacentes)
 )
 
-;Dados un jugador y el tablero, calcula la puntuación del jugador y la actualiza en la variable global
-; (deffunction calcularPuntuacion(?jugador $?tableroLocal)
-;     (bind ?puntos 0)
-;     (progn$ (?i $?tableroLocal)
-;         (bind ?ficha ?i)
-;         (printout t "Ficha: " ?ficha crlf)
-;         (if (eq (sub-string 1 1 ?ficha) ?jugador) then
-;             (printout t "pts: " ?puntos crlf)
-;             (bind ?puntos (+ ?puntos (eval (sub-string 2 3 ?ficha))))
-;         )
-;     )
-;     (printout t "puntos: " ?puntos crlf)
-;     (printout t "1ant: " ?*score1* crlf)
-;     (if (eq (sub-string 1 1 ?ficha) "R") then (bind ?*score1* ?puntos))
-;     (printout t "1des: " ?*score1* crlf)
-
-;     (if (eq (sub-string 1 1 ?ficha) "A") then (bind ?*score2* ?puntos))
-; )
-
-; (deffunction mostrarTablero ($?tableroLocal)
-;     (bind ?indice 1)
-;     (progn$ (?elemento $?tableroLocal)
-;         (printout t ?elemento "")
-;         (if (=(mod ?indice ?*tamano*)0) then
-;             (printout t crlf)
-;         )
-;         (bind ?indice (+ ?indice 1))
-;     )
-; )
-
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
     (declare (salience 20))
@@ -195,8 +170,9 @@
     )
     ;continuar
     (if (=(str-compare ?salir "c")0) then
-    
+        (printout t "Turno " (+ ?*turnos* 1) " de partida" crlf crlf)
         (if (= (mod  ?*turnos*  2) 0) then
+            (printout t "Turno del jugador 1 (ROJO)" crlf)
             (printout t "Fichas disponibles:" ?*jugador1* crlf)
             (printout t "Elija numero de ficha" crlf)
             (bind ?numero (read))
@@ -209,6 +185,7 @@
                 (assert (estado "TURNO"))
             )
         else
+            (printout t "Turno del jugador 2 (AZUL)" crlf)
             (printout t "Fichas disponibles:" ?*jugador2* crlf)
             (printout t "Elija numero de ficha" crlf)
             (bind ?numero (read))
@@ -348,9 +325,6 @@
     (modify ?tab (matriz $?tableroLocal))
     ;Mostramos el tablero
     (mostrarTablero $?tableroLocal)
-    ;Calculamos la nueva puntuacion de los jugadores
-    ; (calcularPuntuacion "R" $?tableroLocal)
-    ; (calcularPuntuacion "A" $?tableroLocal)
     ;Avanzamos un turno
     (bind ?*turnos* (+ ?*turnos* 1))
 
