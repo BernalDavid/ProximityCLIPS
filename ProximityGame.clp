@@ -5,6 +5,7 @@
     (slot prof)
     (slot alfa)
     (slot beta)
+    (slot turno)
 )
 
 ;Turnos pares:      Rojo jugador1
@@ -12,7 +13,7 @@
 (defglobal 
     ?*turnos* = 0
     ?*tamano* = 0
-    ?*id* = 0
+    ?*id* = 1
     ?*jugador1* = ""
     ?*jugador2* = ""
     ?*score1* = 0
@@ -121,6 +122,59 @@
     (return $?adyacentes)
 )
 
+;Dada la posicion (numero) la lista de adyacentes y el tablero, actualiza el valor de las fichas adyacentes en el tablero
+(deffunction actualizarAdyacentes (?numero ?adyacentes $?tableroLocal )
+    (progn$ (?pos $?adyacentes)
+        (bind ?ficha (nth$ ?pos $?tableroLocal))
+        (bind ?color (sub-string 1 1 ?ficha))
+        (bind ?pts (eval (sub-string 2 4 ?ficha))) ;Crea un string con los pts y los pasa a integer
+
+        (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
+                (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
+            (bind ?pts (+ ?pts 1))
+            (if (and (eq ?color "R") (= (mod ?*turnos* 2) 0)) then
+                (bind ?*score1* (+ ?*score1* 1))
+            else
+                (bind ?*score2* (+ ?*score2* 1))
+            )
+        )
+        
+        (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
+                (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
+            
+            (bind ?ptsFichaActual (eval ?numero))
+            (if (> ?ptsFichaActual ?pts) then 
+                (if (eq ?color "R") then 
+                    (bind ?color "A") 
+                    (bind ?*score2* (+ ?*score2* ?pts))
+                    (bind ?*score1* (- ?*score1* ?pts))
+                else 
+                    (bind ?color "R")
+                    (bind ?*score1* (+ ?*score1* ?pts))
+                    (bind ?*score2* (- ?*score2* ?pts))
+                )
+            )
+              
+        )
+        ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
+        (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))
+        (bind ?ficha (str-cat ?color ?pts))
+        (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))                  
+    )
+    (return $?tableroLocal)
+)
+;Función para obtener las posiciones que están libres.
+(deffunction obtenerLibres ($?tableroLocal)
+    (bind $?libres (create$))
+    (progn$ (?i $?tableroLocal)
+        (bind ?ficha (sub-string 1 1 ?i))
+        (if (eq ?i "_")then
+            (bind ?libres (insert$ $?libres 1 ?i))
+        )
+    )
+    (return ?libres)
+)
+
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
     (declare (salience 20))
@@ -149,14 +203,20 @@
     )
     
     ;Inicializar hecho de tablero
-    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)))
+    (bind ?turno "o")
+    (while (and(not (=(str-compare ?turno "ia")0))(not(=(str-compare ?turno "ju")0)))
+        (printout t "¿Quien empieza? ia/ju" crlf)
+        (bind ?turno (read))
+    )
+    
+    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)(turno ?turno)))
 )
 
 
 ;PIDE AL USUARIO COORDENADAS Y GENERA LA FICHA
 (defrule INSERTAR_FICHA
     (declare (salience 10))
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?) (padre ?) (prof ?) (alfa ?) (beta ?))
+    ?tab <-(tablero (matriz $?tableroLocal) (id 1) (padre ?) (prof ?) (alfa ?) (beta ?)(turno ?))
     ?b<-(estado "TURNO")
 =>
     (retract ?b)
@@ -260,7 +320,7 @@
 ;METE LA FICHA GENERADA EN EL TABLERO
 (defrule ACTUALIZAR_TABLERO
     (declare (salience 5))
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?) (padre ?) (prof ?) (alfa ?) (beta ?))
+    ?tab <-(tablero (matriz $?tableroLocal) (id 1) (padre ?) (prof ?) (alfa ?) (beta ?)(turno ?turno))
     ?a<-(ficha ?color ?numero ?x ?y )
     ?b<-(estado "ACTUALIZAR")
 
@@ -283,50 +343,19 @@
     (bind $?adyacentes (obtenerAdyacentes ?x ?y))
 
     ;Hacer las actualizaciones en las adyacentes
-    (progn$ (?pos $?adyacentes)
-        (bind ?ficha (nth$ ?pos $?tableroLocal))
-        (bind ?color (sub-string 1 1 ?ficha))
-        (bind ?pts (eval (sub-string 2 4 ?ficha))) ;Crea un string con los pts y los pasa a integer
-
-        (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
-                (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
-            (bind ?pts (+ ?pts 1))
-            (if (and (eq ?color "R") (= (mod ?*turnos* 2) 0)) then
-                (bind ?*score1* (+ ?*score1* 1))
-            else
-                (bind ?*score2* (+ ?*score2* 1))
-            )
-        )
-        
-        (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
-                (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
-            
-            (bind ?ptsFichaActual (eval ?numero))
-            (if (> ?ptsFichaActual ?pts) then 
-                (if (eq ?color "R") then 
-                    (bind ?color "A") 
-                    (bind ?*score2* (+ ?*score2* ?pts))
-                    (bind ?*score1* (- ?*score1* ?pts))
-                else 
-                    (bind ?color "R")
-                    (bind ?*score1* (+ ?*score1* ?pts))
-                    (bind ?*score2* (- ?*score2* ?pts))
-                )
-            )
-              
-        )
-        ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
-        (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))
-        (bind ?ficha (str-cat ?color ?pts))
-        (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))                  
-    )
-    
-    ;Actualizamos el hecho
-    (modify ?tab (matriz $?tableroLocal))
+    (bind $?tableroLocal (actualizarAdyacentes ?numero $?adyacentes $?tableroLocal))
     ;Mostramos el tablero
     (mostrarTablero $?tableroLocal)
     ;Avanzamos un turno
     (bind ?*turnos* (+ ?*turnos* 1))
+    ;Actualizamos el turno
+    (if (eq ?turno "ia")then
+        (bind ?turno "ju")
+    else
+        (bind ?turno "ia")
+    )
+    ;Actualizamos el hecho
+    (modify ?tab (matriz $?tableroLocal)(turno ?*turnos*))
 
     ;Mostramos las puntuaciones hasta el momento
     (printout t crlf)
@@ -380,3 +409,18 @@
     (halt)
 
 )
+
+; (defrule MINIMAX
+;     ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
+; =>
+;     (bind $?libres (obtenerLibres $?tableroLocal))
+    
+;     (progn$ (?ficha $?libres)
+;         (bind ?tab)
+;     )
+
+    
+
+; )
+
+
