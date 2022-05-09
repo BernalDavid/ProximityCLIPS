@@ -31,6 +31,19 @@
     (return ?pos)
 )
 
+;Dada una posicion 1D, devuelve sus coordenadas x y
+(deffunction posMatriz2D (?pos)
+    (bind ?x (div ?pos ?*tamano*))
+    (bind ?y (mod ?pos ?*tamano*))
+    (if (= ?y 0) then (bind ?y ?*tamano*))
+    (if (not(= (mod ?pos ?*tamano*) 0)) then
+       (bind ?x (+ ?x 1))
+    )
+    
+    (return (create$ ?x ?y))
+
+)
+
 ;Dada la info del tablero en un multicampo, la muestra por pantalla con formato de tablero
 (deffunction mostrarTablero ($?tableroLocal)
     (bind ?indice 1)
@@ -166,14 +179,17 @@
 ;Función para obtener las posiciones que están libres.
 (deffunction obtenerLibres ($?tableroLocal)
     (bind $?libres (create$))
+    (bind ?cont 1)
     (progn$ (?i $?tableroLocal)
         (bind ?ficha (sub-string 1 1 ?i))
-        (if (eq ?i "_")then
-            (bind ?libres (insert$ $?libres 1 ?i))
+        (if (=(str-compare ?ficha "_")0) then
+            (bind ?libres (insert$ $?libres 1 ?cont))
         )
+        (bind ?cont (+ ?cont 1))
     )
     (return ?libres)
 )
+
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
@@ -369,13 +385,15 @@
         (if (= ?*turnos* (* ?*tamano* ?*tamano*)) then
             (assert (estado "GANAR"))
         else
-            (assert (estado "TURNO"))
+            ;(assert (estado "TURNO"))
+            (assert (estado "GENERAR"))
         )
     else
         (if (= ?*turnos* (- (* ?*tamano* ?*tamano*) 1)) then
             (assert (estado "GANAR"))
         else
-            (assert (estado "TURNO"))
+            ;(assert (estado "TURNO"))
+            (assert (estado "GENERAR"))
         )
     )
     
@@ -410,17 +428,47 @@
 
 )
 
-; (defrule MINIMAX
-;     ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
-; =>
-;     (bind $?libres (obtenerLibres $?tableroLocal))
-    
-;     (progn$ (?ficha $?libres)
-;         (bind ?tab)
-;     )
+(defrule GENERAR_TABLEROS
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
+    ?a <-(estado "GENERAR")
+=>
 
     
+    (retract ?a)
+    (bind $?posLibres (obtenerLibres $?tableroLocal))
+    (if (= (mod  ?*turnos*  2) 0) then
+        (bind $?fichasLibres ?*jugador1*)
+    else
+        (bind $?fichasLibres ?*jugador2*)         
+    )
+    
+    (printout t "gisuede" $?posLibres crlf)
+    (progn$ (?pos $?posLibres)
+        (progn$ (?ficha $?fichasLibres)
+            (if (not(eq ?ficha "-")) then
+                ;calculamos sus coordenadas
+                (bind ?coordenadas (posMatriz2D ?pos))
+    
+                ;insertamos la ficha en el tablero
+                (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))
+    
+                ;obtener las fichas adyacentes a la ficha insertada
+                (bind ?x (nth$ 1 ?coordenadas))
+                (bind ?y (nth$ 2 ?coordenadas))
+                (bind $?adyacentes (obtenerAdyacentes ?x ?y))
 
-; )
+                ;Hacer las actualizaciones en las adyacentes
+                (bind $?tableroLocal (actualizarAdyacentes ?ficha $?adyacentes $?tableroLocal))
+                (bind ?padre ?id)
+                (bind ?*id* (+ ?*id* 1))
+                (bind ?prof (+ ?prof 1))
+                (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre ?padre) (prof ?prof) (alfa -999) (beta 999)(turno ?turno)))
+            )   
+        )
+    )
+    (assert (estado "TURNO"))
+    
+
+)
 
 
