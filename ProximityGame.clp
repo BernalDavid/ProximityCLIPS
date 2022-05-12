@@ -33,6 +33,7 @@
 
 ;Dada una posicion 1D, devuelve sus coordenadas x y
 (deffunction posMatriz2D (?pos)
+    
     (bind ?x (div ?pos ?*tamano*))
     (bind ?y (mod ?pos ?*tamano*))
     (if (= ?y 0) then (bind ?y ?*tamano*))
@@ -140,8 +141,10 @@
     (progn$ (?pos $?adyacentes)
         (bind ?ficha (nth$ ?pos $?tableroLocal))
         (bind ?color (sub-string 1 1 ?ficha))
+        (printout t "ficha " ?ficha crlf)
+        (printout t "substring " (eval (sub-string 2 4 ?ficha)) crlf)
         (bind ?pts (eval (sub-string 2 4 ?ficha))) ;Crea un string con los pts y los pasa a integer
-
+        
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
             (bind ?pts (+ ?pts 1))
@@ -151,7 +154,6 @@
                 (bind ?*score2* (+ ?*score2* 1))
             )
         )
-        
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
             
@@ -167,12 +169,13 @@
                     (bind ?*score2* (- ?*score2* ?pts))
                 )
             )
-              
+             
         )
         ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
-        (if (< ?pts 10) then (bind ?pts (str-cat "0" ?pts)))
-        (bind ?ficha (str-cat ?color ?pts))
-        (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))                  
+        (if (< ?pts 10) then (bind ?ptsString (str-cat "0" ?pts)))
+        (bind ?ficha (str-cat ?color ?ptsString))
+        (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))
+                         
     )
     (return $?tableroLocal)
 )
@@ -187,7 +190,7 @@
         )
         (bind ?cont (+ ?cont 1))
     )
-    (return ?libres)
+    (return $?libres)
 )
 
 
@@ -429,7 +432,7 @@
 )
 
 (defrule GENERAR_TABLEROS
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre 0) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
     ?a <-(estado "GENERAR")
 =>
 
@@ -437,32 +440,48 @@
     (retract ?a)
     (bind $?posLibres (obtenerLibres $?tableroLocal))
     (if (= (mod  ?*turnos*  2) 0) then
-        (bind $?fichasLibres ?*jugador1*)
+        (bind $?fichasLibres (explode$ ?*jugador1*))
     else
-        (bind $?fichasLibres ?*jugador2*)         
+        (bind $?fichasLibres (explode$ ?*jugador2*))        
     )
     
-    (printout t "gisuede" $?posLibres crlf)
+    
     (progn$ (?pos $?posLibres)
+    (printout t "pos " ?pos crlf)
         (progn$ (?ficha $?fichasLibres)
-            (if (not(eq ?ficha "-")) then
+            (bind $?tableroNuevo $?tableroLocal)
+            ;por cada ficha libre, en cada posicion, generar un tablero
+            (bind ?fichaString (str-cat ?ficha ""))
+            
+            (if (not (=(str-compare ?fichaString "-")0)) then
+                (bind ?fichaInt (nth$ ?ficha $?fichasLibres))
+                
                 ;calculamos sus coordenadas
-                (bind ?coordenadas (posMatriz2D ?pos))
-    
+                (bind $?coordenadas (posMatriz2D ?pos))
+                
+                ;Damos formato a la ficha
+                (if (< ?fichaInt 10) then (bind ?fichaString (str-cat "0" ?fichaInt)))
+                (if (= (mod  ?*turnos*  2) 0) then 
+                    (bind ?fichaString (str-cat "R" ?fichaInt))
+                else
+                    (bind ?fichaString (str-cat "A" ?fichaInt))
+                )
+
                 ;insertamos la ficha en el tablero
-                (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))
-    
+                (bind $?tableroNuevo (replace$ $?tableroNuevo ?pos ?pos ?fichaString))
+              
                 ;obtener las fichas adyacentes a la ficha insertada
                 (bind ?x (nth$ 1 ?coordenadas))
                 (bind ?y (nth$ 2 ?coordenadas))
-                (bind $?adyacentes (obtenerAdyacentes ?x ?y))
-
+                (bind $?adyacentes (obtenerAdyacentes (- ?x 1) (- ?y 1))) 
                 ;Hacer las actualizaciones en las adyacentes
-                (bind $?tableroLocal (actualizarAdyacentes ?ficha $?adyacentes $?tableroLocal))
+                (bind $?tableroNuevo (actualizarAdyacentes ?fichaInt $?adyacentes $?tableroNuevo))
+            
                 (bind ?padre ?id)
                 (bind ?*id* (+ ?*id* 1))
-                (bind ?prof (+ ?prof 1))
-                (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre ?padre) (prof ?prof) (alfa -999) (beta 999)(turno ?turno)))
+                (bind ?prof ?padre)
+                (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?padre) (prof ?prof) (alfa -999) (beta 999)(turno ?turno)))
+            
             )   
         )
     )
