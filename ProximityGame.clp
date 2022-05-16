@@ -11,13 +11,14 @@
 ;Turnos pares:      Rojo jugador1
 ;Turnos impares:    Azul jugador2
 (defglobal 
-    ?*turnos* = 0
+    ?*turnos* = 1
     ?*tamano* = 0
     ?*id* = 1
     ?*jugador1* = ""
     ?*jugador2* = ""
     ?*score1* = 0
-    ?*score2* = 0 
+    ?*score2* = 0
+    ?*iaju* = ""
 
 )
 
@@ -177,7 +178,8 @@
     )
     (return $?tableroLocal)
 )
-;Función para obtener las posiciones que están libres.
+
+;Dado un tablero, devuelve las posiciones libres
 (deffunction obtenerLibres ($?tableroLocal)
     (bind $?libres (create$))
     (bind ?cont 1)
@@ -198,7 +200,6 @@
     ?b<-(estado "INICIO")
 =>
     (retract ?b)
-    (assert (estado "TURNO"))
     (printout t "Especifica tamano del tablero" crlf)
     (bind ?*tamano* (read))
 
@@ -219,14 +220,22 @@
         (bind ?*jugador2* (str-cat ?*jugador2* ?i" "))
     )
     
-    ;Inicializar hecho de tablero
-    (bind ?turno "o")
-    (while (and(not (=(str-compare ?turno "ia")0))(not(=(str-compare ?turno "ju")0)))
+    (while (and(not (=(str-compare ?*iaju* "ia")0))(not(=(str-compare ?*iaju* "ju")0)))
         (printout t "¿Quien empieza? ia/ju" crlf)
-        (bind ?turno (read))
+        (bind ?*iaju* (read))
     )
     
-    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)(turno ?turno)))
+    ;Inicializar hecho de tablero
+    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)(turno ?*iaju*)))
+    
+
+    (if (=(str-compare ?*iaju* "ia")0) then
+        (assert (estado "RANDOM"))
+    else
+        (assert (estado "JUGADOR"))
+    )
+
+    
 )
 
 
@@ -234,7 +243,7 @@
 (defrule INSERTAR_FICHA
     (declare (salience 10))
     ?tab <-(tablero (matriz $?tableroLocal) (id 1) (padre ?) (prof ?) (alfa ?) (beta ?)(turno ?))
-    ?b<-(estado "TURNO")
+    ?b<-(estado "JUGADOR")
 =>
     (retract ?b)
 
@@ -247,8 +256,9 @@
     )
     ;continuar
     (if (=(str-compare ?salir "c")0) then
-        (printout t "Turno " (+ ?*turnos* 1) " de partida" crlf crlf)
+        (printout t "Turno " ?*turnos* " de partida" crlf crlf)
         (if (= (mod  ?*turnos*  2) 0) then
+        
             (printout t "Turno del jugador 1 (ROJO)" crlf)
             (printout t "Fichas disponibles:" ?*jugador1* crlf)
             (printout t "Elija numero de ficha" crlf)
@@ -259,7 +269,7 @@
 
             (if (not (subset (create$ ?numero) $?lista)) then
                 (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
-                (assert (estado "TURNO"))
+                (assert (estado "JUGADOR"))
             )
         else
             (printout t "Turno del jugador 2 (AZUL)" crlf)
@@ -272,7 +282,7 @@
 
             (if (not (subset (create$ ?numero) $?lista)) then
                 (printout "Ese numero ya se ha usado, por favor elija otro" crlf)
-                (assert (estado "TURNO"))
+                (assert (estado "JUGADOR"))
             )
         )
     
@@ -296,11 +306,11 @@
         ;Para el usuario empiezan en 1
         (if (> ?x ?*tamano*) then
             (printout t "Indica una posicion correcta" crlf)
-            (assert (estado "TURNO"))
+            (assert (estado "JUGADOR"))
         else    
             (if (> ?y ?*tamano*) then
                 (printout t "Indica una posicion correcta" crlf)
-                (assert (estado "TURNO"))
+                (assert (estado "JUGADOR"))
             else
                 (bind ?posicion (+(+(* ?x ?*tamano*) ?y)1))
             
@@ -318,9 +328,10 @@
                         (bind ?*score2* (+ ?*score2* ?numero))
                         (bind ?*jugador2* (implode$ $?lista))
                     )
+
                 else
                     (printout t "Esa posicion ya esta en uso, por favor, indica una posicion correcta" crlf)
-                    (assert (estado "TURNO"))
+                    (assert (estado "JUGADOR"))
                 )
             )
         )
@@ -328,8 +339,7 @@
     else
         (if (=(str-compare ?salir "s")0) then
             (assert (estado "SALIR"))
-        )
-        
+        )   
     )
 )
 
@@ -342,11 +352,9 @@
     ?b<-(estado "ACTUALIZAR")
 
 =>
-    (printout t "Ficha:" ?a crlf)
-    (retract ?b)
     (retract ?a)
-    (printout t "X: " ?x crlf)
-    (printout t "Y: " ?y crlf)
+    (retract ?b)
+    
     ;Para que el tablero se imprima bien, añadimos un 0 si el valor es de un solo digito
     (if (< ?numero 10) then
         (bind ?numero (str-cat "0" ?numero))
@@ -366,14 +374,37 @@
     (bind $?tableroLocal (actualizarAdyacentes ?numero $?adyacentes $?tableroLocal))
     ;Mostramos el tablero
     (mostrarTablero $?tableroLocal)
+    
+    ;Comprobar si la partida ha terminado o no y el cambio de estado ju/ia
+    (if (=(mod ?*tamano* 2)0) then
+        (if (= ?*turnos* (* ?*tamano* ?*tamano*)) then
+            (assert (estado "GANAR"))
+        else
+            (if (=(str-compare ?*iaju* "ju")0) then
+                (assert (estado "RANDOM"))
+                (bind ?*iaju* "ia")
+            else
+                (assert (estado "JUGADOR"))
+                (bind ?*iaju* "ju")
+            )
+        )
+    else
+        (if (= ?*turnos* (-(* ?*tamano* ?*tamano*)1)) then
+            (assert (estado "GANAR"))
+        else
+           (if (=(str-compare ?*iaju* "ju")0) then
+                (assert (estado "RANDOM"))
+                (bind ?*iaju* "ia")
+            else
+                (assert (estado "JUGADOR")) 
+                (bind ?*iaju* "ju")
+            )
+        )
+    )
+
     ;Avanzamos un turno
     (bind ?*turnos* (+ ?*turnos* 1))
-    ;Actualizamos el turno
-    (if (eq ?turno "ia")then
-        (bind ?turno "ju")
-    else
-        (bind ?turno "ia")
-    )
+    
     ;Actualizamos el hecho
     (modify ?tab (matriz $?tableroLocal)(turno ?*turnos*))
 
@@ -384,43 +415,25 @@
     (printout t crlf)
     (printout t crlf)
 
-    ;Comprobar si la partida ha terminado o no
-    (if (= (mod (* ?*tamano* ?*tamano*) 2) 0) then
-        (if (= ?*turnos* (* ?*tamano* ?*tamano*)) then
-            (assert (estado "GANAR"))
-        else
-            (if (= (mod  ?*turnos*  2) 0) then
-              (assert (estado "TURNO"))
-            else
-              (assert (estado "RANDOM"))       
-            )
-        )
-    else
-        (if (= ?*turnos* (- (* ?*tamano* ?*tamano*) 1)) then
-            (assert (estado "GANAR"))
-        else
-            (if (= (mod  ?*turnos*  2) 0) then
-              (assert (estado "TURNO"))
-            else
-              (assert (estado "RANDOM"))       
-            )
-        )
-    )
     
+    
+ 
 )
 
 (defrule FINAL
     ?a<-(estado "GANAR")
 =>
+    (retract ?a)
+
     (if (= ?*score1* ?*score2*) then
         (printout t "Empate")
         (halt)
     else
         (if (> ?*score1* ?*score2*) then
-            (printout t "El jugador1 (R) gana.")
+            (printout t "El jugador1 (R) gana." crlf)
             (halt)
         else
-            (printout t "El jugador2 (A) gana.")
+            (printout t "El jugador2 (A) gana." crlf)
             (halt)
         )
     )
@@ -443,6 +456,7 @@
     ?a <-(estado "RANDOM")
 =>
     (retract ?a)
+    
     ;Valor random
     (if (= (mod  ?*turnos*  2) 0) then
         (bind $?fichasLibres (explode$ ?*jugador1*))
@@ -481,8 +495,7 @@
         (bind ?*score2* (+ ?*score2* ?valorRandom))
     )
 
-    
-    ;(bind ?*turnos* (+ ?*turnos* 1))
+
     (assert (estado "ACTUALIZAR"))
 
 )
@@ -541,7 +554,7 @@
 ;             )   
 ;         )
 ;     )
-;     (assert (estado "TURNO"))
+;     (assert (estado "JUGADOR"))
     
 
 ;)
