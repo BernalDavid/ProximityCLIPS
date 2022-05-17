@@ -36,8 +36,8 @@
         (estado "INICIO")
 )
 
-;********************FUNCIONES********************
-;*************************************************
+;******************************  FUNCIONES  ******************************
+;*************************************************************************
 
 ;Dadas las coordenadas x e y de una ficha, devuelve su posicion 1D en el tablero
 (deffunction posTablero (?x ?y)
@@ -162,9 +162,9 @@
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 1))) then     ; Ficha azul en turno azul: sumar
             (bind ?pts (+ ?pts 1))
             (if (and (eq ?color "R") (= (mod ?*turnos* 2) 0)) then
-                (bind ?*score1* (+ ?*score1* 1))
+                ;(bind ?*score1* (+ ?*score1* 1))
             else
-                (bind ?*score2* (+ ?*score2* 1))
+                ;(bind ?*score2* (+ ?*score2* 1))
             )
         )
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
@@ -174,12 +174,12 @@
             (if (> ?ptsFichaActual ?pts) then 
                 (if (eq ?color "R") then 
                     (bind ?color "A") 
-                    (bind ?*score2* (+ ?*score2* ?pts))
-                    (bind ?*score1* (- ?*score1* ?pts))
+                    ;(bind ?*score2* (+ ?*score2* ?pts))
+                    ;(bind ?*score1* (- ?*score1* ?pts))
                 else 
                     (bind ?color "R")
-                    (bind ?*score1* (+ ?*score1* ?pts))
-                    (bind ?*score2* (- ?*score2* ?pts))
+                    ;(bind ?*score1* (+ ?*score1* ?pts))
+                    ;(bind ?*score2* (- ?*score2* ?pts))
                 )
             )
              
@@ -207,11 +207,50 @@
     (return $?libres)
 )
 
+
+;Dado un tablero, calcula los puntos de cada jugador y los muestra por pantalla
+(deffunction obtenerPuntos ($?tablero)
+    
+    (bind ?puntosRojo 0)
+    (bind ?puntosAzul 0)
+    
+    (progn$ (?ficha $?tablero) 
+        (bind ?color (sub-string 1 1 ?ficha))
+        (bind ?puntos (eval (sub-string 2 3 ?ficha)))
+
+        (if (= (str-compare ?color "R") 0) then
+            (bind ?puntosRojo (+ ?puntosRojo ?puntos))
+        else
+            (bind ?puntosAzul (+ ?puntosAzul ?puntos))
+        )
+    )
+    ;(printout t "PUNTOS ROJO: " ?puntosRojo crlf)
+    ;(printout t "PUNTOS AZUL: " ?puntosAzul crlf)
+    (bind $?puntosTablero (create$ ?puntosRojo ?puntosAzul))
+    (return $?puntosTablero)
+)
+
+
+;Dados el numero de ficha insertada y el tablero, calcula el valor del heurístico
+(deffunction obtenerHeuristico (?numero $?tablero)
+    (bind ?numero (eval ?numero))
+
+    (bind $?puntos (create$ (obtenerPuntos $?tablero)))
+
+    (bind ?puntosRojo (nth$ 1 $?puntos))
+    (bind ?puntosAzul (nth$ 2 $?puntos))
+
+    (bind ?heuristico (div (- ?puntosAzul ?puntosRojo)?numero))
+    (printout t (div (- ?puntosAzul ?puntosRojo)?numero) crlf)
+    (printout t "HEURISTICO: " ?heuristico crlf)
+    (return ?heuristico)
+
+)
+
 ;Dado un tablero y las fichas disponibles del jugador, genera todos los estados siguientes posibles (prof 1)
 (deffunction generarHijos (?idPadre ?tableroPadre $?fichasLibres)
     
     (bind $?posLibres (obtenerLibres $?tableroPadre))
-    (bind ?heur 0)
     ;Para cada posicion libre del tablero
     (progn$ (?pos $?posLibres)
         ;para cada ficha libre del jugador
@@ -253,7 +292,8 @@
                 (bind ?prof ?idPadre)
 
                 ;calcular heuristico
-                (bind ?heur (+ ?heur 1))
+                (bind ?heur (obtenerHeuristico (sub-string 2 3 ?fichaString) $?tableroNuevo))
+
                 (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?idPadre) (prof ?prof) (alfa -999) (beta 999) (heuristico ?heur) (turno ?*iaju*) (real "no")))
             
             )   
@@ -262,8 +302,8 @@
 )
 
 
-;********************FIN FUNCIONES********************
-;*****************************************************
+;******************************FIN FUNCIONES******************************
+;*************************************************************************
 
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
@@ -392,10 +432,10 @@
                     (bind $?lista (replace$ $?lista ?numero ?numero -))
                 
                     (if (= (mod  ?*turnos*  2) 0) then
-                        (bind ?*score1* (+ ?*score1* ?numero))
+                        ;(bind ?*score1* (+ ?*score1* ?numero))
                         (bind ?*jugador1* (implode$ $?lista))
                     else
-                        (bind ?*score2* (+ ?*score2* ?numero))
+                        ;(bind ?*score2* (+ ?*score2* ?numero))
                         (bind ?*jugador2* (implode$ $?lista))
                     )
 
@@ -474,9 +514,14 @@
 
     ;Avanzamos un turno
     (bind ?*turnos* (+ ?*turnos* 1))
+
+    (bind ?heur (obtenerHeuristico (sub-string 2 3 ?ficha) $?tableroLocal))
     
-    ;Actualizamos el hecho
-    (modify ?tab (matriz $?tableroLocal) (turno ?*iaju*))
+    ;Actualizamos el hecho del tablero
+    (modify ?tab (matriz $?tableroLocal) (turno ?*iaju*) (heuristico ?heur))
+
+    (bind ?*score1* (nth$ 1 (obtenerPuntos $?tableroLocal)))
+    (bind ?*score2* (nth$ 2 (obtenerPuntos $?tableroLocal)))
 
     ;Mostramos las puntuaciones hasta el momento
     (printout t crlf)
@@ -559,10 +604,10 @@
     (bind $?fichasLibres (replace$ $?fichasLibres ?valorRandom ?valorRandom -))
     (if (= (mod  ?*turnos*  2) 0) then
         (bind ?*jugador1* (implode$ ?fichasLibres))
-        (bind ?*score1* (+ ?*score1* ?valorRandom))
+        ;(bind ?*score1* (+ ?*score1* ?valorRandom))
     else
         (bind ?*jugador2* (implode$ ?fichasLibres)) 
-        (bind ?*score2* (+ ?*score2* ?valorRandom))
+        ;(bind ?*score2* (+ ?*score2* ?valorRandom))
     )
 
 
@@ -574,8 +619,7 @@
     ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?) (real "si"))
     ?a <-(estado "MINIMAX")
 =>
-
-    
+ 
     (retract ?a)
     
     (if (= (mod  ?*turnos*  2) 0) then
@@ -583,9 +627,10 @@
     else
         (bind $?fichasLibres (explode$ ?*jugador2*))        
     )
+
+    (bind ?*heurOpt* $?heur)
     
     (generarHijos ?id $?tableroLocal $?fichasLibres)
-    (bind ?*heurOpt* $?heur)
     
     (assert (estado "SELECCION_JUGADA"))
 )
@@ -628,8 +673,21 @@
         )
         (bind ?i (+ ?i 1))
     )
-    (printout t "x: " ?x "  y: " ?y crlf)
+    
     (assert (ficha ?color ?valor ?x ?y ))
+
+    ;Marcar la ficha como usada
+    (if (= (mod  ?*turnos*  2) 0) then
+        (bind $?fichasLibres (explode$ ?*jugador1*))
+        (bind $?fichasLibres (replace$ $?fichasLibres ?valor ?valor -))
+        (bind ?*jugador1* (implode$ ?fichasLibres))
+        
+    else
+        (bind $?fichasLibres (explode$ ?*jugador2*))
+        (bind $?fichasLibres (replace$ $?fichasLibres ?valor ?valor -))
+        (bind ?*jugador2* (implode$ ?fichasLibres)) 
+      
+    )
 
     (assert (estado "ACTUALIZAR"))
 )
