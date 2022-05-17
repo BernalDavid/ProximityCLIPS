@@ -5,6 +5,7 @@
     (slot prof)
     (slot alfa)
     (slot beta)
+    (slot heuristico)
     (slot turno)
 )
 
@@ -20,7 +21,7 @@
     ?*score2* = 0
     ?*iaju* = ""
     ?*AGENTE* = "MINIMAX"       ;MINIMAX // RANDOM
-
+    ?*HeurOpt* = 0
 )
 
 (deffacts hechos-iniciales
@@ -201,10 +202,10 @@
 )
 
 ;Dado un tablero y las fichas disponibles del jugador, genera todos los estados siguientes posibles (prof 1)
-(deffunction generarHijos (?tableroPadre $?fichasLibres)
+(deffunction generarHijos (?idPadre ?tableroPadre $?fichasLibres)
     
     (bind $?posLibres (obtenerLibres $?tableroPadre))
-
+    (bind ?heur 0)
     ;Para cada posicion libre del tablero
     (progn$ (?pos $?posLibres)
     (printout t "pos " ?pos crlf)
@@ -240,15 +241,15 @@
                 (bind ?y (nth$ 2 ?coordenadas))
                 (bind $?adyacentes (obtenerAdyacentes (- ?x 1) (- ?y 1))) 
                 ;Hacer las actualizaciones en las adyacentes
-
-                (printout t "tab antes: " $?tableroNuevo crlf)
                 
                 (bind $?tableroNuevo (actualizarAdyacentes (sub-string 2 3 ?fichaString) $?adyacentes $?tableroNuevo))
-                (printout t "tab despues: " $?tableroNuevo crlf)
-                (bind ?padre ?*id*)
+                
                 (bind ?*id* (+ ?*id* 1))
-                (bind ?prof ?padre)
-                (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?padre) (prof ?prof) (alfa -999) (beta 999)(turno ?*iaju*)))
+                (bind ?prof ?idPadre)
+
+                ;calcular heuristico
+                (bind ?heur (+ ?heur 1))
+                (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?idPadre) (prof ?prof) (alfa -999) (beta 999) (heuristico ?heur) (turno ?*iaju*)))
             
             )   
         )
@@ -292,7 +293,7 @@
     )
     
     ;Inicializar hecho de tablero
-    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999)(turno ?*iaju*)))
+    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999) (heuristico 0) (turno ?*iaju*)))
     
 
     (if (=(str-compare ?*iaju* "ia")0) then
@@ -518,7 +519,7 @@
 )
 
 (defrule RANDOM
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre 0) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre 0) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?turno))
     ?a <-(estado "RANDOM")
 =>
     (retract ?a)
@@ -567,7 +568,7 @@
 )
 
 (defrule MINIMAX
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?turno))
     ?a <-(estado "MINIMAX")
 =>
 
@@ -580,10 +581,24 @@
         (bind $?fichasLibres (explode$ ?*jugador2*))        
     )
     
-    (generarHijos $?tableroLocal $?fichasLibres)
+    (generarHijos ?id $?tableroLocal $?fichasLibres)
+    (bind ?*HeurOpt* $?heur)
     
-    (assert (estado "JUGADOR"))
+    (assert (estado "SELECCION_JUGADA"))
+)
+
+(defrule SELECCION_JUGADA
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?turno))
+    ?a <-(estado "SELECCION_JUGADA")
+=>
+    (retract ?a)
+
     
+    (if (> ?*HeurOpt* ?heur) then       ;Si el optimo es mejor, descartamos la jugada
+        (retract ?tab)
+    else                                ;si el optimo es igual o peor, nos quedamos con esa jugada
+        (bind ?*HeurOpt* ?heur)
+    )
 
 )
 
