@@ -7,6 +7,7 @@
     (slot beta)
     (slot heuristico)
     (slot turno)
+    (slot real)
 )
 
 ;Turnos pares:      Rojo jugador1
@@ -21,7 +22,14 @@
     ?*score2* = 0
     ?*iaju* = ""
     ?*AGENTE* = "MINIMAX"       ;MINIMAX // RANDOM
-    ?*HeurOpt* = 0
+    ;Para añadir hecho con la jugada optima
+    ?*tableroOpt* = (create$)
+    ?*idOpt* = 0
+    ?*padreOpt* = 0
+    ?*profOpt* = 0
+    ?*alfaOpt* = 0
+    ?*betaOpt* = 0
+    ?*heurOpt* = 0   
 )
 
 (deffacts hechos-iniciales
@@ -161,9 +169,7 @@
         )
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
-            
-            (printout t "antes eval 1 " ?numero crlf )
-            
+                
             (bind ?ptsFichaActual (eval ?numero))
             (if (> ?ptsFichaActual ?pts) then 
                 (if (eq ?color "R") then 
@@ -208,7 +214,6 @@
     (bind ?heur 0)
     ;Para cada posicion libre del tablero
     (progn$ (?pos $?posLibres)
-    (printout t "pos " ?pos crlf)
         ;para cada ficha libre del jugador
         (progn$ (?ficha $?fichasLibres)
             ;generamos multicampo para le nuevo tablero (copia del padre)
@@ -249,7 +254,7 @@
 
                 ;calcular heuristico
                 (bind ?heur (+ ?heur 1))
-                (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?idPadre) (prof ?prof) (alfa -999) (beta 999) (heuristico ?heur) (turno ?*iaju*)))
+                (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?idPadre) (prof ?prof) (alfa -999) (beta 999) (heuristico ?heur) (turno ?*iaju*) (real "no")))
             
             )   
         )
@@ -263,7 +268,6 @@
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
-    (declare (salience 20))
     ?b<-(estado "INICIO")
 =>
     (retract ?b)
@@ -293,7 +297,7 @@
     )
     
     ;Inicializar hecho de tablero
-    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999) (heuristico 0) (turno ?*iaju*)))
+    (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999) (heuristico 0) (turno "ju") (real "si")))
     
 
     (if (=(str-compare ?*iaju* "ia")0) then
@@ -308,7 +312,6 @@
 
 ;PIDE AL USUARIO COORDENADAS Y GENERA LA FICHA
 (defrule INSERTAR_FICHA
-    (declare (salience 10))
     ?tab <-(tablero (matriz $?tableroLocal) (id 1) (padre ?) (prof ?) (alfa ?) (beta ?)(turno ?))
     ?b<-(estado "JUGADOR")
 =>
@@ -413,8 +416,7 @@
 
 ;METE LA FICHA GENERADA EN EL TABLERO
 (defrule ACTUALIZAR_TABLERO
-    (declare (salience 5))
-    ?tab <-(tablero (matriz $?tableroLocal) (id 1) (padre ?) (prof ?) (alfa ?) (beta ?)(turno ?turno))
+    ?tab <-(tablero (matriz $?tableroLocal) (id 1) (padre ?) (prof ?) (alfa ?) (beta ?)(turno ?turno)(real "si"))
     ?a<-(ficha ?color ?numero ?x ?y )
     ?b<-(estado "ACTUALIZAR")
 
@@ -432,11 +434,12 @@
     ;calculamos su posicion en el tablero
     (bind ?posicion (posTablero ?x ?y ))
     
+    (printout t "posicion: " ?posicion crlf)
     ;insertamos la ficha en el tablero
     (bind $?tableroLocal (replace$ $?tableroLocal ?posicion ?posicion ?ficha))
     ;obtener las fichas adyacentes a la ficha insertada
     (bind $?adyacentes (obtenerAdyacentes ?x ?y))
-    (printout t "numero: " ?numero crlf)
+    
     ;Hacer las actualizaciones en las adyacentes
     (bind $?tableroLocal (actualizarAdyacentes ?numero $?adyacentes $?tableroLocal))
     ;Mostramos el tablero
@@ -473,7 +476,7 @@
     (bind ?*turnos* (+ ?*turnos* 1))
     
     ;Actualizamos el hecho
-    (modify ?tab (matriz $?tableroLocal)(turno ?*turnos*))
+    (modify ?tab (matriz $?tableroLocal) (turno ?*iaju*))
 
     ;Mostramos las puntuaciones hasta el momento
     (printout t crlf)
@@ -519,7 +522,7 @@
 )
 
 (defrule RANDOM
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre 0) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?turno))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre 0) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno "ju") (real "si"))
     ?a <-(estado "RANDOM")
 =>
     (retract ?a)
@@ -568,7 +571,7 @@
 )
 
 (defrule MINIMAX
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?turno))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?) (real "si"))
     ?a <-(estado "MINIMAX")
 =>
 
@@ -582,24 +585,53 @@
     )
     
     (generarHijos ?id $?tableroLocal $?fichasLibres)
-    (bind ?*HeurOpt* $?heur)
+    (bind ?*heurOpt* $?heur)
     
     (assert (estado "SELECCION_JUGADA"))
 )
 
 (defrule SELECCION_JUGADA
-    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?turno))
+    (declare (salience 10))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?) (real "no"))
     ?a <-(estado "SELECCION_JUGADA")
 =>
-    (retract ?a)
-
-    
-    (if (> ?*HeurOpt* ?heur) then       ;Si el optimo es mejor, descartamos la jugada
-        (retract ?tab)
-    else                                ;si el optimo es igual o peor, nos quedamos con esa jugada
-        (bind ?*HeurOpt* ?heur)
+    (retract ?tab)
+    (if (<= ?*heurOpt* ?heur) then       ;si el optimo es igual o peor, nos quedamos con esa jugada
+        (bind ?*heurOpt* ?heur)
+        (bind ?*tableroOpt* $?tableroLocal)
+        (bind ?*idOpt* ?id)
+        (bind ?*padreOpt* ?padre)
+        (bind ?*profOpt* ?prof)
+        (bind ?*alfaOpt* ?alfa)
+        (bind ?*betaOpt* ?beta)
     )
+)
 
+(defrule GENERAR_FICHA_MINIMAX
+    (declare (salience 5))
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta) (heuristico ?heur) (turno ?) (real "si"))
+    ?a <-(estado "SELECCION_JUGADA")
+
+=>
+    (retract ?a)
+    
+    (bind ?i 1)
+    ;la ficha global esta actualizada, la local no. Cuando sean distintas significara que es la que se ha cambiado
+    (progn$ (?fichaGlobal ?*tableroOpt*)
+        (bind ?fichaLocal (nth$ ?i $?tableroLocal))
+        (if (not(=(str-compare ?fichaGlobal ?fichaLocal) 0)) then
+            ;Obtenemos los datos de la ficha para insertarla
+            (bind ?color (sub-string 1 1 ?fichaGlobal))
+            (bind ?valor (eval(sub-string 2 3 ?fichaGlobal)))
+            (bind ?x (-(nth$ 1 (posMatriz2D ?i))1))
+            (bind ?y (-(nth$ 2 (posMatriz2D ?i))1))
+        )
+        (bind ?i (+ ?i 1))
+    )
+    (printout t "x: " ?x "  y: " ?y crlf)
+    (assert (ficha ?color ?valor ?x ?y ))
+
+    (assert (estado "ACTUALIZAR"))
 )
 
 
