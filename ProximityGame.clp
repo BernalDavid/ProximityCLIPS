@@ -26,6 +26,9 @@
         (estado "INICIO")
 )
 
+;********************FUNCIONES********************
+;*************************************************
+
 ;Dadas las coordenadas x e y de una ficha, devuelve su posicion 1D en el tablero
 (deffunction posTablero (?x ?y)
     (bind ?pos (+ (+(* ?x ?*tamano*) ?y) 1))
@@ -142,6 +145,7 @@
     (progn$ (?pos $?adyacentes)
         (bind ?ficha (nth$ ?pos $?tableroLocal))
         (bind ?color (sub-string 1 1 ?ficha))
+        
         (bind ?pts (eval (sub-string 2 4 ?ficha))) ;Crea un string con los pts y los pasa a integer
         
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 0))           ; Ficha roja en turno rojo: sumar
@@ -155,6 +159,8 @@
         )
         (if (or (and (eq ?color "R") (= (mod ?*turnos* 2) 1))           ; Ficha roja en turno azul: cambiar color
                 (and (eq ?color "A") (= (mod ?*turnos* 2) 0))) then     ; Ficha azul en turno rojo: cambiar color
+            
+            (printout t "antes eval 1 " ?numero crlf )
             
             (bind ?ptsFichaActual (eval ?numero))
             (if (> ?ptsFichaActual ?pts) then 
@@ -193,6 +199,56 @@
     (return $?libres)
 )
 
+;Dado un tablero y las fichas disponibles del jugador, genera todos los estados siguientes posibles (prof 1)
+(deffunction generarHijos (?tableroLocal $?fichasLibres)
+    
+    (bind $?posLibres (obtenerLibres $?tableroLocal))
+
+    (progn$ (?pos $?posLibres)
+    (printout t "pos " ?pos crlf)
+        (progn$ (?ficha $?fichasLibres)
+            (bind $?tableroNuevo $?tableroLocal)
+            ;por cada ficha libre, en cada posicion, generar un tablero
+            (bind ?fichaString (str-cat ?ficha ""))
+            
+            (if (not (=(str-compare ?fichaString "-")0)) then
+                (bind ?fichaInt (nth$ ?ficha $?fichasLibres))
+                
+                ;calculamos sus coordenadas
+                (bind $?coordenadas (posMatriz2D ?pos))
+                
+                ;Damos formato a la ficha
+                (if (< ?fichaInt 10) then (bind ?fichaString (str-cat "0" ?fichaInt)))
+                (if (= (mod  ?*turnos*  2) 0) then 
+                    (bind ?fichaString (str-cat "R" ?fichaInt))
+                else
+                    (bind ?fichaString (str-cat "A" ?fichaInt))
+                )
+
+                ;insertamos la ficha en el tablero
+                (bind $?tableroNuevo (replace$ $?tableroNuevo ?pos ?pos ?fichaString))
+              
+                ;obtener las fichas adyacentes a la ficha insertada
+                (bind ?x (nth$ 1 ?coordenadas))
+                (bind ?y (nth$ 2 ?coordenadas))
+                (bind $?adyacentes (obtenerAdyacentes (- ?x 1) (- ?y 1))) 
+                ;Hacer las actualizaciones en las adyacentes
+                (bind $?tableroNuevo (actualizarAdyacentes ?fichaInt $?adyacentes $?tableroNuevo))
+            
+                (bind ?padre ?*id*)
+                (bind ?*id* (+ ?*id* 1))
+                (bind ?prof ?padre)
+                (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?padre) (prof ?prof) (alfa -999) (beta 999)(turno ?*iaju*)))
+            
+            )   
+        )
+    )
+)
+
+
+;********************FIN FUNCIONES********************
+;*****************************************************
+
 
 ;INICIALIZA EL TABLERO (TODO VACIO)
 (defrule INICIALIZAR_TABLERO
@@ -230,7 +286,8 @@
     
 
     (if (=(str-compare ?*iaju* "ia")0) then
-        (assert (estado "RANDOM"))
+        ;(assert (estado "RANDOM"))
+        (assert (estado "MINIMAX"))
     else
         (assert (estado "JUGADOR"))
     )
@@ -381,7 +438,8 @@
             (assert (estado "GANAR"))
         else
             (if (=(str-compare ?*iaju* "ju")0) then
-                (assert (estado "RANDOM"))
+                ;(assert (estado "RANDOM"))
+                (assert (estado "MINIMAX"))
                 (bind ?*iaju* "ia")
             else
                 (assert (estado "JUGADOR"))
@@ -393,7 +451,8 @@
             (assert (estado "GANAR"))
         else
            (if (=(str-compare ?*iaju* "ju")0) then
-                (assert (estado "RANDOM"))
+                ;(assert (estado "RANDOM"))
+                (assert (estado "MINIMAX"))
                 (bind ?*iaju* "ia")
             else
                 (assert (estado "JUGADOR")) 
@@ -500,63 +559,25 @@
 
 )
 
-; (defrule GENERAR_TABLEROS
-;     ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre 0) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
-;     ?a <-(estado "GENERAR")
-; =>
+(defrule MINIMAX
+    ?tab <-(tablero (matriz $?tableroLocal) (id ?id) (padre ?padre) (prof ?prof) (alfa ?alfa) (beta ?beta)(turno ?turno))
+    ?a <-(estado "MINIMAX")
+=>
 
     
-;     (retract ?a)
-;     (bind $?posLibres (obtenerLibres $?tableroLocal))
-;     (if (= (mod  ?*turnos*  2) 0) then
-;         (bind $?fichasLibres (explode$ ?*jugador1*))
-;     else
-;         (bind $?fichasLibres (explode$ ?*jugador2*))        
-;     )
+    (retract ?a)
     
+    (if (= (mod  ?*turnos*  2) 0) then
+        (bind $?fichasLibres (explode$ ?*jugador1*))
+    else
+        (bind $?fichasLibres (explode$ ?*jugador2*))        
+    )
     
-;     (progn$ (?pos $?posLibres)
-;     (printout t "pos " ?pos crlf)
-;         (progn$ (?ficha $?fichasLibres)
-;             (bind $?tableroNuevo $?tableroLocal)
-;             ;por cada ficha libre, en cada posicion, generar un tablero
-;             (bind ?fichaString (str-cat ?ficha ""))
-            
-;             (if (not (=(str-compare ?fichaString "-")0)) then
-;                 (bind ?fichaInt (nth$ ?ficha $?fichasLibres))
-                
-;                 ;calculamos sus coordenadas
-;                 (bind $?coordenadas (posMatriz2D ?pos))
-                
-;                 ;Damos formato a la ficha
-;                 (if (< ?fichaInt 10) then (bind ?fichaString (str-cat "0" ?fichaInt)))
-;                 (if (= (mod  ?*turnos*  2) 0) then 
-;                     (bind ?fichaString (str-cat "R" ?fichaInt))
-;                 else
-;                     (bind ?fichaString (str-cat "A" ?fichaInt))
-;                 )
-
-;                 ;insertamos la ficha en el tablero
-;                 (bind $?tableroNuevo (replace$ $?tableroNuevo ?pos ?pos ?fichaString))
-              
-;                 ;obtener las fichas adyacentes a la ficha insertada
-;                 (bind ?x (nth$ 1 ?coordenadas))
-;                 (bind ?y (nth$ 2 ?coordenadas))
-;                 (bind $?adyacentes (obtenerAdyacentes (- ?x 1) (- ?y 1))) 
-;                 ;Hacer las actualizaciones en las adyacentes
-;                 (bind $?tableroNuevo (actualizarAdyacentes ?fichaInt $?adyacentes $?tableroNuevo))
-            
-;                 (bind ?padre ?id)
-;                 (bind ?*id* (+ ?*id* 1))
-;                 (bind ?prof ?padre)
-;                 (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?padre) (prof ?prof) (alfa -999) (beta 999)(turno ?turno)))
-            
-;             )   
-;         )
-;     )
-;     (assert (estado "JUGADOR"))
+    (generarHijos $?tableroLocal $?fichasLibres)
+    
+    (assert (estado "JUGADOR"))
     
 
-;)
+)
 
 
