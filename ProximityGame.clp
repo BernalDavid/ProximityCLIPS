@@ -240,8 +240,11 @@
                 (bind ?y (nth$ 2 ?coordenadas))
                 (bind $?adyacentes (obtenerAdyacentes (- ?x 1) (- ?y 1))) 
                 ;Hacer las actualizaciones en las adyacentes
-                (bind $?tableroNuevo (actualizarAdyacentes ?pos $?adyacentes $?tableroNuevo))
+
+                (printout t "tab antes: " $?tableroNuevo crlf)
                 
+                (bind $?tableroNuevo (actualizarAdyacentes (sub-string 2 3 ?fichaString) $?adyacentes $?tableroNuevo))
+                (printout t "tab despues: " $?tableroNuevo crlf)
                 (bind ?padre ?*id*)
                 (bind ?*id* (+ ?*id* 1))
                 (bind ?prof ?padre)
@@ -432,7 +435,7 @@
     (bind $?tableroLocal (replace$ $?tableroLocal ?posicion ?posicion ?ficha))
     ;obtener las fichas adyacentes a la ficha insertada
     (bind $?adyacentes (obtenerAdyacentes ?x ?y))
-
+    (printout t "numero: " ?numero crlf)
     ;Hacer las actualizaciones en las adyacentes
     (bind $?tableroLocal (actualizarAdyacentes ?numero $?adyacentes $?tableroLocal))
     ;Mostramos el tablero
