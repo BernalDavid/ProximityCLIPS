@@ -19,6 +19,7 @@
     ?*score1* = 0
     ?*score2* = 0
     ?*iaju* = ""
+    ?*AGENTE* = "MINIMAX"       ;MINIMAX // RANDOM
 
 )
 
@@ -200,29 +201,35 @@
 )
 
 ;Dado un tablero y las fichas disponibles del jugador, genera todos los estados siguientes posibles (prof 1)
-(deffunction generarHijos (?tableroLocal $?fichasLibres)
+(deffunction generarHijos (?tableroPadre $?fichasLibres)
     
-    (bind $?posLibres (obtenerLibres $?tableroLocal))
+    (bind $?posLibres (obtenerLibres $?tableroPadre))
 
+    ;Para cada posicion libre del tablero
     (progn$ (?pos $?posLibres)
     (printout t "pos " ?pos crlf)
+        ;para cada ficha libre del jugador
         (progn$ (?ficha $?fichasLibres)
-            (bind $?tableroNuevo $?tableroLocal)
-            ;por cada ficha libre, en cada posicion, generar un tablero
+            ;generamos multicampo para le nuevo tablero (copia del padre)
+            (bind $?tableroNuevo $?tableroPadre)
+            
+            ;Inicializa la ficha a insertar (su valor en formato string)
             (bind ?fichaString (str-cat ?ficha ""))
             
+            ;Comprobamos que NO sea una ficha ya utilizada 
             (if (not (=(str-compare ?fichaString "-")0)) then
+                ;Obtenemos el valor de la ficha en formato int
                 (bind ?fichaInt (nth$ ?ficha $?fichasLibres))
                 
-                ;calculamos sus coordenadas
+                ;calculamos las coordenadas en las que meter la ficha
                 (bind $?coordenadas (posMatriz2D ?pos))
                 
                 ;Damos formato a la ficha
-                (if (< ?fichaInt 10) then (bind ?fichaString (str-cat "0" ?fichaInt)))
+                (if (< ?fichaInt 10) then (bind ?fichaString (str-cat "0" ?fichaString)))
                 (if (= (mod  ?*turnos*  2) 0) then 
-                    (bind ?fichaString (str-cat "R" ?fichaInt))
+                    (bind ?fichaString (str-cat "R" ?fichaString))
                 else
-                    (bind ?fichaString (str-cat "A" ?fichaInt))
+                    (bind ?fichaString (str-cat "A" ?fichaString))
                 )
 
                 ;insertamos la ficha en el tablero
@@ -233,8 +240,8 @@
                 (bind ?y (nth$ 2 ?coordenadas))
                 (bind $?adyacentes (obtenerAdyacentes (- ?x 1) (- ?y 1))) 
                 ;Hacer las actualizaciones en las adyacentes
-                (bind $?tableroNuevo (actualizarAdyacentes ?fichaInt $?adyacentes $?tableroNuevo))
-            
+                (bind $?tableroNuevo (actualizarAdyacentes ?pos $?adyacentes $?tableroNuevo))
+                
                 (bind ?padre ?*id*)
                 (bind ?*id* (+ ?*id* 1))
                 (bind ?prof ?padre)
@@ -286,8 +293,7 @@
     
 
     (if (=(str-compare ?*iaju* "ia")0) then
-        ;(assert (estado "RANDOM"))
-        (assert (estado "MINIMAX"))
+        (assert (estado ?*AGENTE*))
     else
         (assert (estado "JUGADOR"))
     )
@@ -438,8 +444,7 @@
             (assert (estado "GANAR"))
         else
             (if (=(str-compare ?*iaju* "ju")0) then
-                ;(assert (estado "RANDOM"))
-                (assert (estado "MINIMAX"))
+                (assert (estado ?*AGENTE*))
                 (bind ?*iaju* "ia")
             else
                 (assert (estado "JUGADOR"))
@@ -451,8 +456,7 @@
             (assert (estado "GANAR"))
         else
            (if (=(str-compare ?*iaju* "ju")0) then
-                ;(assert (estado "RANDOM"))
-                (assert (estado "MINIMAX"))
+                (assert (estado ?*AGENTE*))
                 (bind ?*iaju* "ia")
             else
                 (assert (estado "JUGADOR")) 
