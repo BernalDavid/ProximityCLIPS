@@ -550,7 +550,6 @@
     ;Calcular heuristico
     (bind ?heur (obtenerHeuristico (sub-string 2 3 ?ficha) $?tableroLocal))
 
-    (printout t "HEUR :" ?heur crlf)
     ;Actualizamos el hecho del tablero
     (modify ?tab (matriz $?tableroLocal) (turno ?*iaju*) (heuristico ?heur))
 
