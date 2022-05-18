@@ -8,6 +8,7 @@
     (slot heuristico)
     (slot turno)
     (slot real)
+    (multislot fichasLibres)
 )
 
 ;Turnos pares:      Rojo jugador1
@@ -21,7 +22,8 @@
     ?*score1* = 0
     ?*score2* = 0
     ?*iaju* = ""
-    ?*AGENTE* = "RANDOM"       ;MINIMAX // RANDOM
+    ?*inicio* = ""
+    ?*AGENTE* = "MINIMAX"       ;MINIMAX // RANDOM
     ;Para añadir hecho con la jugada optima
     ?*tableroOpt* = (create$)
     ?*idOpt* = 0
@@ -145,13 +147,7 @@
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero ?x (- ?y 1))))        ;adyacente izq
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (- ?x 1) (+ ?y 1) ))) ;adyacente sup der
         (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (- ?x 1) ?y )))       ;adyacente sup
-        (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (- ?x 1) (- ?y 1))))  ;adyacente sup izq
-        
-        
-        
-        
-        
-        
+        (bind $?adyacentes (insert$ ?adyacentes 1 (posTablero (- ?x 1) (- ?y 1))))  ;adyacente sup izq   
         
     )
     
@@ -160,13 +156,9 @@
 
 ;Dada la posicion (numero) la lista de adyacentes y el tablero, actualiza el valor de las fichas adyacentes en el tablero
 (deffunction actualizarAdyacentes (?numero ?adyacentes $?tableroLocal)
-    (printout t "adyacentes " $?adyacentes crlf)
     (progn$ (?pos $?adyacentes)
-        (printout t "pos    " ?pos crlf)
         (bind ?ficha (nth$ ?pos $?tableroLocal))
         (bind ?color (sub-string 1 1 ?ficha))
-
-        (printout t "ficha           " ?ficha crlf)
         
         (bind ?pts (eval (sub-string 2 4 ?ficha))) ;Crea un string con los pts y los pasa a integer
         
@@ -200,8 +192,6 @@
         (if (< ?pts 10) then (bind ?ptsString (str-cat "0" ?pts))
         else (bind ?ptsString (str-cat "" ?pts)))
 
-        (printout t "ficha  antes de str-cat  " ?ficha crlf)
-        (printout t "ptsString                " ?ptsString crlf)
         (bind ?ficha (str-cat ?color ?ptsString))
         ;(printout t "ficha  despues de str-cat" ?ficha crlf)
         (bind $?tableroLocal (replace$ $?tableroLocal ?pos ?pos ?ficha))
@@ -225,7 +215,7 @@
 )
 
 
-;Dado un tablero, calcula los puntos de cada jugador y los muestra por pantalla
+;Dado un tablero, calcula los puntos de cada jugador
 (deffunction obtenerPuntos ($?tablero)
     
     (bind ?puntosRojo 0)
@@ -241,8 +231,6 @@
             (bind ?puntosAzul (+ ?puntosAzul ?puntos))
         )
     )
-    ;(printout t "PUNTOS ROJO: " ?puntosRojo crlf)
-    ;(printout t "PUNTOS AZUL: " ?puntosAzul crlf)
     (bind $?puntosTablero (create$ ?puntosRojo ?puntosAzul))
     (return $?puntosTablero)
 )
@@ -256,10 +244,11 @@
 
     (bind ?puntosRojo (nth$ 1 $?puntos))
     (bind ?puntosAzul (nth$ 2 $?puntos))
-
-    (bind ?heuristico (div (- ?puntosAzul ?puntosRojo)?numero))
-    ;(printout t (div (- ?puntosAzul ?puntosRojo)?numero) crlf)
-    ;(printout t "HEURISTICO: " ?heuristico crlf)
+ 
+    (bind ?heuristico (-(- ?puntosRojo ?puntosAzul)?numero))
+  
+    (printout t "num :   " ?numero crlf)
+    (printout t "heur:   " ?heuristico crlf)
     (return ?heuristico)
 
 )
@@ -316,13 +305,13 @@
 
                 ;calcular heuristico
                 (bind ?heur (obtenerHeuristico (sub-string 2 3 ?fichaString) $?tableroNuevo))
-
+                
+                (bind ?fichasLibresNuevo (replace$ $?fichasLibres ?fichaInt ?fichaInt 0))
                 (assert (tablero (matriz $?tableroNuevo) (id ?*id*) (padre ?idPadre) (prof ?prof) (alfa -999) (beta 999) (heuristico ?heur) (turno ?*iaju*) (real "no")))
                 
             )   
         )
     )
-    
     (bind ?*tableroOpt* $?tableroNuevo)
     (bind ?*heurOpt* ?heur)
 )
@@ -361,6 +350,8 @@
         (printout t "¿Quien empieza? ia/ju" crlf)
         (bind ?*iaju* (read))
     )
+
+    (bind ?*inicio* ?*iaju*)
     
     ;Inicializar hecho de tablero
     (assert (tablero (matriz $?tableroLocal) (id ?*id*) (padre 0) (prof 0) (alfa -999) (beta 999) (heuristico 0) (turno "ju") (real "si")))
@@ -555,13 +546,9 @@
     (printout t crlf)
     (printout t "Puntuacion del jugador1 (R): " ?*score1* crlf)
     (printout t "Puntuacion del jugador2 (A): " ?*score2* crlf)
-    (printout t crlf)
-    (printout t crlf)
-
-    
-    
- 
+    (printout t crlf crlf)
 )
+
 
 (defrule FINAL
     ?a<-(estado "GANAR")
@@ -669,15 +656,27 @@
     ?a <-(estado "SELECCION_JUGADA")
 =>
     (retract ?tab)
-    (if (<= ?*heurOpt* ?heur) then       ;si el optimo es igual o peor, nos quedamos con esa jugada
-        (bind ?*heurOpt* ?heur)
-
-        (bind ?*tableroOpt* $?tableroLocal)
-        (bind ?*idOpt* ?id)
-        (bind ?*padreOpt* ?padre)
-        (bind ?*profOpt* ?prof)
-        (bind ?*alfaOpt* ?alfa)
-        (bind ?*betaOpt* ?beta)
+                                                        ;Rojo-Azul
+    (if (=(str-compare ?*inicio* "ia")0) then           ;Si empieza ia => ia azul (minimiza)
+        (if (>= ?*heurOpt* ?heur) then
+            (bind ?*heurOpt* ?heur)
+            (bind ?*tableroOpt* $?tableroLocal)
+            (bind ?*idOpt* ?id)
+            (bind ?*padreOpt* ?padre)
+            (bind ?*profOpt* ?prof)
+            (bind ?*alfaOpt* ?alfa)
+            (bind ?*betaOpt* ?beta)
+        ) 
+    else                                               ;Si empieza ju => ia rojo (maximiza)
+        (if (<= ?*heurOpt* ?heur) then
+            (bind ?*heurOpt* ?heur)
+            (bind ?*tableroOpt* $?tableroLocal)
+            (bind ?*idOpt* ?id)
+            (bind ?*padreOpt* ?padre)
+            (bind ?*profOpt* ?prof)
+            (bind ?*alfaOpt* ?alfa)
+            (bind ?*betaOpt* ?beta)
+        )   
     )
 )
 
@@ -695,12 +694,14 @@
     (progn$ (?fichaGlobal ?*tableroOpt*)
         (bind ?fichaLocal (nth$ ?i $?tableroLocal))
         (if (not(=(str-compare ?fichaGlobal ?fichaLocal) 0)) then
-            ;Obtenemos los datos de la ficha para insertarla
-            (printout t "color : " (sub-string 1 1 ?fichaGlobal) crlf)
-            (bind ?color (sub-string 1 1 ?fichaGlobal))
-            (bind ?valor (eval(sub-string 2 3 ?fichaGlobal)))
-            (bind ?x (-(nth$ 1 (posMatriz2D ?i))1))
-            (bind ?y (-(nth$ 2 (posMatriz2D ?i))1))
+            (if (=(str-compare ?fichaLocal "_00")0) then
+                ;Obtenemos los datos de la ficha para insertarla
+                (bind ?color (sub-string 1 1 ?fichaGlobal))
+                (bind ?valor (eval(sub-string 2 3 ?fichaGlobal)))
+                (bind ?x (-(nth$ 1 (posMatriz2D ?i))1))
+                (bind ?y (-(nth$ 2 (posMatriz2D ?i))1))
+            )
+            
         )
         (bind ?i (+ ?i 1))
     )
